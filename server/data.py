@@ -40,11 +40,15 @@ class Store:
     def __init__(self) -> None:
         self.sites = pd.read_csv(RAW / "sites.csv")
         self.meteo = pd.read_csv(RAW / "Cleaned_meteo_rwanda_daily_gee.csv", parse_dates=["date"])
-        s1 = pd.read_csv(RAW / "s1_site_timeseries.csv", parse_dates=["date"])
-        prim = CFG["sources"]["sentinel1"]["primary_buffer_m"]
-        s1 = s1[(s1["pass"] == CFG["sources"]["sentinel1"]["orbit_pass"])]
-        self.s1_buffers = sorted(s1.buffer_m.unique().tolist())
-        self.s1 = s1[s1.buffer_m == prim].sort_values(["site_id", "date"])
+        derived = HF / "data" / "derived" / "s1_primary_buffer.parquet"
+        if derived.exists():  # descending pass, primary buffer: built from the raw CSV
+            self.s1 = pd.read_parquet(derived)
+        else:
+            prim = CFG["sources"]["sentinel1"]["primary_buffer_m"]
+            s1 = pd.read_csv(RAW / "s1_site_timeseries.csv", parse_dates=["date"])
+            s1 = s1[(s1["pass"] == CFG["sources"]["sentinel1"]["orbit_pass"]) & (s1.buffer_m == prim)]
+            self.s1 = s1[["site_id", "date", "vv_db", "vh_db", "n_valid_px"]].sort_values(["site_id", "date"])
+        self.s1["date"] = pd.to_datetime(self.s1["date"])
         self.s1_dates = sorted(self.s1.date.dt.strftime("%Y-%m-%d").unique())
         self.product: dict[int, pd.DataFrame] = {}
         for h in HORIZONS:

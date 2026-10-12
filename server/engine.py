@@ -127,24 +127,45 @@ class Engine:
 
     # ------------------------------------------------------------------ load
     def load(self) -> None:
+        """Fit (once) on the full table, but keep only the operational window in
+        memory: explanations and scenarios only ever touch forecast issue dates."""
+        test_start = pd.Timestamp(CFG["validation"]["temporal"]["test_start"])
         with self._lock:
             for h in HORIZONS:
-                tbl = pd.read_parquet(HF / "data" / "processed" / f"table_A_new_water_h{h}.parquet")
+                path = HF / "data" / "processed" / f"table_A_new_water_h{h}.parquet"
+                manifest = json.loads((HF / "data" / "processed" / f"table_A_new_water_h{h}_manifest.json").read_text())
+                cached = self._cached(h, manifest)
+                if cached is None:
+                    full = pd.read_parquet(path)
+                    full["date"] = pd.to_datetime(full["date"])
+                    cached = self._train(h, full, manifest)
+                    del full
+                self.models[h] = cached
+                cols = ["site_id", "date", "y"] + cached.fcols
+                tbl = pd.read_parquet(path, columns=cols, filters=[("date", ">=", test_start)])
                 tbl["date"] = pd.to_datetime(tbl["date"])
-                self.tables[h] = tbl
-                self.models[h] = self._load_or_train(h, tbl)
+                self.tables[h] = tbl.astype({c: "float32" for c in cached.fcols})
             self.status = "ready"
 
-    def _load_or_train(self, h: int, tbl: pd.DataFrame) -> HorizonModel:
-        manifest = json.loads((HF / "data" / "processed" / f"table_A_new_water_h{h}_manifest.json").read_text())
-        fcols = manifest.get("feature_columns") or _published(h)["manifest"]["table"]["feature_columns"]
-        fp = hashlib.sha1((",".join(fcols) + str(len(tbl)) + str(int(tbl["y"].sum()))).encode()).hexdigest()[:16]
+    @staticmethod
+    def _fingerprint(manifest: dict) -> str:
+        key = ",".join(manifest["feature_columns"]) + str(manifest["n_rows"]) + str(manifest["n_positive"])
+        return hashlib.sha1(key.encode()).hexdigest()[:16]
+
+    def _cached(self, h: int, manifest: dict) -> HorizonModel | None:
         path = VAR / "models" / f"habitat_formation_h{h}.joblib"
-        if path.exists():
-            m: HorizonModel = joblib.load(path)
-            if m.fingerprint == fp and getattr(m, "reproduction", None):
-                self._say(f"h{h}: loaded cached model {fp}")
-                return m
+        if not path.exists():
+            return None
+        m: HorizonModel = joblib.load(path)
+        if m.fingerprint == self._fingerprint(manifest) and getattr(m, "reproduction", None):
+            self._say(f"h{h}: loaded cached model {m.fingerprint}")
+            return m
+        return None
+
+    def _train(self, h: int, tbl: pd.DataFrame, manifest: dict) -> HorizonModel:
+        fcols = manifest["feature_columns"]
+        fp = self._fingerprint(manifest)
+        path = VAR / "models" / f"habitat_formation_h{h}.joblib"
         self._say(f"h{h}: fitting model on study table ({len(tbl):,} rows, {len(fcols)} features)")
         t = CFG["validation"]["temporal"]
         tr = tbl[tbl.date <= pd.Timestamp(t["train_end"])]

@@ -48,9 +48,13 @@ Tests: `pip install pytest httpx && pytest -q tests`.
 
 ## Deployment
 
-- **Public demonstration:** Hugging Face Space built from `deploy/huggingface/`. The Space
-  clones this repository at build time. The `ci` workflow rebuilds it after tests pass on
-  `main` once the repository has secret `HF_TOKEN` and variable `HF_SPACE` set.
+- **Hosted service (Render):** `render.yaml` is a Render Blueprint. In the Render dashboard
+  choose New → Blueprint and select this repository; Render builds the Dockerfile and
+  redeploys on every push to `main`. The free plan sleeps after 15 minutes idle (about a
+  minute to wake) and resets the operations database on redeploy; the Starter plan stays on,
+  and a disk mounted at `/app/var` keeps missions and flight logs.
+- **Hugging Face Space (PRO accounts):** `deploy/huggingface/` holds a Space that builds
+  straight from this repository.
 - **Programme use (RBC / MoH):** run the Docker image on a server in the national data centre
   or at RBC, with `RINDA_VAR` on persistent storage, behind the ministry's identity provider
   and HTTPS.

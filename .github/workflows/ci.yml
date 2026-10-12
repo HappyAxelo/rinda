@@ -18,16 +18,35 @@ jobs:
       - run: pip install -r requirements.txt pytest httpx
       - run: pytest -q tests
 
-  deploy-space:
-    # Rebuilds the Hugging Face Space after tests pass on main.
-    # Needs repository secret HF_TOKEN (write) and variable HF_SPACE (e.g. HappyAxelo/rinda).
-    needs: test
-    if: github.event_name == 'push' && vars.HF_SPACE != ''
-    runs-on: ubuntu-latest
-    steps:
-      - name: Factory-rebuild the Space
+      - name: Memory budget (hosted plan has 512 MB)
         env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          MALLOC_ARENA_MAX: "2"
+          OMP_NUM_THREADS: "1"
         run: |
-          curl -fsS -X POST -H "Authorization: Bearer $HF_TOKEN" \
-            "https://huggingface.co/api/spaces/${{ vars.HF_SPACE }}/restart?factory=true"
+          python -c "import sys; sys.path.insert(0, 'server'); from engine import ENGINE; ENGINE.load()"
+          uvicorn --app-dir server main:app --port 8740 & PID=$!
+          for i in $(seq 90); do curl -sf localhost:8740/api/health | grep -q ready && break; sleep 2; done
+          for u in /api/bootstrap "/api/forecast?h=7" "/api/forecast?h=14" /api/site/G0221 \
+                   "/api/explain?site=G0221&date=2025-11-26&h=7" "/api/scenario?site=G0221&date=2025-11-26&h=7&rain=2" \
+                   /api/assurance /api/evidence /api/meteo /api/meteo/summary "/api/verification?h=7" "/api/bulletin?h=7"; do
+            curl -sf "localhost:8740$u" > /dev/null
+          done
+          curl -sf -X POST localhost:8740/api/economics -H 'content-type: application/json' -d '{}' > /dev/null
+          curl -sf -X POST localhost:8740/api/missions/plan -H 'content-type: application/json' -d '{"h":7,"date":"2025-11-26"}' > /dev/null
+          grep -E 'VmHWM|VmRSS' /proc/$PID/status
+          hwm=$(awk '/VmHWM/{print $2}' /proc/$PID/status)
+          kill $PID
+          test "$hwm" -lt 460000
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t rinda .
+      - name: Container serves the console
+        run: |
+          docker run -d --name rinda -p 7860:7860 rinda
+          for i in $(seq 60); do curl -sf localhost:7860/api/health | grep -q ready && break; sleep 2; done
+          curl -sf localhost:7860/ | grep -q RINDA
+          docker stats --no-stream rinda

@@ -1,0 +1,16 @@
+# Render Blueprint: Dashboard → New → Blueprint → select this repository.
+# Free plan sleeps after 15 minutes idle and resets the operations database on
+# redeploy. Switch plan to "starter" for an always-on service, and add a disk
+# mounted at /app/var to keep missions and flight logs across deploys.
+services:
+  - type: web
+    name: rinda
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: "10000"
