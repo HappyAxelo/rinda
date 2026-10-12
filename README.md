@@ -1,5 +1,8 @@
 # RINDA · Vector Habitat Intelligence
 
+[![ci](https://github.com/HappyAxelo/rinda/actions/workflows/ci.yml/badge.svg)](https://github.com/HappyAxelo/rinda/actions/workflows/ci.yml)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/HappyAxelo/rinda)
+
 Forecast-to-flight operations console for larval source management. RINDA takes the
 7- and 14-day habitat-formation forecast from the Gikomero study and carries it through
 mission planning, onboard verification, treatment records, programme economics and
