@@ -11,6 +11,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY --chown=rinda:rinda . .
+RUN mkdir -p /app/var && chown rinda:rinda /app /app/var
 USER rinda
 
 # Fit both forecast models at build time so the container starts in seconds.

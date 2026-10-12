@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends git libgomp1 ca
 
 ARG REPO=https://github.com/HappyAxelo/rinda.git
 ADD https://api.github.com/repos/HappyAxelo/rinda/git/refs/heads/main /tmp/rinda-head.json
-RUN git clone --depth 1 "$REPO" /app && chown -R rinda:rinda /app
+RUN git clone --depth 1 "$REPO" /app && mkdir -p /app/var && chown -R rinda:rinda /app
 
 WORKDIR /app
 RUN pip install --no-cache-dir -r requirements.txt
