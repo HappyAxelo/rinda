@@ -141,10 +141,18 @@ class Engine:
                     cached = self._train(h, full, manifest)
                     del full
                 self.models[h] = cached
+                # The operational window is cached beside the model: reading it back
+                # from the 111-column parquet costs ~300 MB of transient Arrow memory.
+                window = VAR / "models" / f"window_h{h}_{cached.fingerprint}.pkl"
+                if window.exists():
+                    self.tables[h] = pd.read_pickle(window)
+                    continue
                 cols = ["site_id", "date", "y"] + cached.fcols
                 tbl = pd.read_parquet(path, columns=cols, filters=[("date", ">=", test_start)])
                 tbl["date"] = pd.to_datetime(tbl["date"])
-                self.tables[h] = tbl.astype({c: "float32" for c in cached.fcols})
+                tbl = tbl.astype({c: "float32" for c in cached.fcols})
+                tbl.to_pickle(window)
+                self.tables[h] = tbl
             self.status = "ready"
 
     @staticmethod
