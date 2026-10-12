@@ -1,0 +1,197 @@
+{
+  "provenance": {
+    "project": "gikomero-habitat-forecast",
+    "study_area": "Gikomero Sector, Gasabo District, Kigali City, Rwanda",
+    "mode": "hindcast",
+    "available_sources": [
+      "meteo",
+      "sentinel1"
+    ],
+    "missing_sources": [
+      "sentinel2",
+      "terrain",
+      "entomology",
+      "nwp_forecast"
+    ],
+    "enabled_targets": [
+      "A_new_water"
+    ],
+    "blocked_targets": {
+      "B_suitable_habitat": "sentinel2 export absent",
+      "C_anopheles": "no larval survey records; model cannot claim confirmed Anopheles breeding, only POTENTIAL suitable habitat"
+    },
+    "seed": 20260909
+  },
+  "sources": {
+    "meteo": {
+      "name": "meteo",
+      "present": true,
+      "path": "data/raw/Cleaned_meteo_rwanda_daily_gee.csv",
+      "n_rows": 979,
+      "n_cols": 19,
+      "date_min": "2023-03-22",
+      "date_max": "2026-01-15",
+      "span_days": 1031,
+      "day_coverage_pct": 95.0,
+      "n_sites": 1,
+      "n_duplicates": 0,
+      "duplicate_key": [
+        "station",
+        "date"
+      ],
+      "missing_columns": [],
+      "null_pct": {
+        "_dry_day_pct": 55.2
+      },
+      "notes": [
+        "SINGLE STATION (GIKOMERO). Meteorological predictors vary in time but NOT in space. Any apparent spatial skill comes from SAR/optical/terrain, not from weather.",
+        "168 independent wet spells (>=1 mm runs) across 979 daily rows. Effective meteorological sample size ~= 168, not 979.",
+        "Humidity complete on 259/979 days (26.5%). Incomplete days differ by +12.8 pts -> NOT missing at random. Gate on the flag; never impute across it.",
+        "5 days report exactly 0.0% RH (implausible) -> treat as missing."
+      ]
+    },
+    "sentinel1": {
+      "name": "sentinel1",
+      "present": true,
+      "path": "data/raw/s1_site_timeseries.csv",
+      "n_rows": 512959,
+      "n_cols": 8,
+      "date_min": "2023-03-01",
+      "date_max": "2026-01-26",
+      "span_days": 1063,
+      "day_coverage_pct": 20.0,
+      "n_sites": 600,
+      "n_duplicates": 1759,
+      "duplicate_key": [
+        "site_id",
+        "date",
+        "buffer_m",
+        "rel_orbit"
+      ],
+      "missing_columns": [],
+      "null_pct": {},
+      "notes": [
+        "4 buffer radii present [np.int64(10), np.int64(50), np.int64(100), np.int64(250)]: 512959 rows describe about 127800 site-dates. The loader pivots radii into columns; it does NOT collapse them, so the multi-scale design is preserved.",
+        "2 relative orbits present [21.0, 123.0]. Tracks with different incidence angles carry a systematic backscatter offset, so rel_orbit is retained as a model feature.",
+        "1759 rows share (site, date, buffer, orbit) -- two tracks imaging the same day. These are genuine repeat looks and are averaged in LINEAR POWER by the loader, not discarded."
+      ]
+    },
+    "sentinel2": {
+      "name": "sentinel2",
+      "present": false,
+      "path": "data/raw/s2_site_timeseries.csv",
+      "n_rows": null,
+      "n_cols": null,
+      "date_min": null,
+      "date_max": null,
+      "span_days": null,
+      "day_coverage_pct": null,
+      "n_sites": null,
+      "n_duplicates": null,
+      "duplicate_key": [],
+      "missing_columns": [],
+      "null_pct": {},
+      "notes": [
+        "file absent or present:false"
+      ]
+    },
+    "terrain": {
+      "name": "terrain",
+      "present": false,
+      "path": "data/raw/terrain_static.csv",
+      "n_rows": null,
+      "n_cols": null,
+      "date_min": null,
+      "date_max": null,
+      "span_days": null,
+      "day_coverage_pct": null,
+      "n_sites": null,
+      "n_duplicates": null,
+      "duplicate_key": [],
+      "missing_columns": [],
+      "null_pct": {},
+      "notes": [
+        "file absent or present:false"
+      ]
+    },
+    "entomology": {
+      "name": "entomology",
+      "present": false,
+      "path": "data/raw/larval_surveys.csv",
+      "n_rows": null,
+      "n_cols": null,
+      "date_min": null,
+      "date_max": null,
+      "span_days": null,
+      "day_coverage_pct": null,
+      "n_sites": null,
+      "n_duplicates": null,
+      "duplicate_key": [],
+      "missing_columns": [],
+      "null_pct": {},
+      "notes": [
+        "file absent or present:false"
+      ]
+    },
+    "nwp_forecast": {
+      "name": "nwp_forecast",
+      "present": false,
+      "path": "data/raw/nwp_forecast.csv",
+      "n_rows": null,
+      "n_cols": null,
+      "date_min": null,
+      "date_max": null,
+      "span_days": null,
+      "day_coverage_pct": null,
+      "n_sites": null,
+      "n_duplicates": null,
+      "duplicate_key": [],
+      "missing_columns": [],
+      "null_pct": {},
+      "notes": [
+        "file absent or present:false"
+      ]
+    }
+  },
+  "feasibility": {
+    "mode": "hindcast",
+    "enabled_targets": [
+      "A_new_water"
+    ],
+    "blocked_targets": {
+      "B_suitable_habitat": "sentinel2 export absent",
+      "C_anopheles": "no larval survey records; model cannot claim confirmed Anopheles breeding, only POTENTIAL suitable habitat"
+    },
+    "modelling_table_buildable": true,
+    "spatial_modelling_possible": true,
+    "deep_learning_gate": {
+      "min_positive_sequences_required": 500,
+      "min_independent_events_required": 100,
+      "status": "CHECK_AT_TRAIN_TIME",
+      "reason": "Sequence count is known only after label generation; the trainer re-checks this gate and refuses to report a deep model that fails it."
+    },
+    "cross_station_validation_possible": false
+  },
+  "required_later": [
+    {
+      "item": "Sentinel-2 per-site time series",
+      "blocks": "optical features; Target B suitability screen"
+    },
+    {
+      "item": "Terrain rasters (DEM, slope, TWI, flow accumulation)",
+      "blocks": "terrain features; ablation arms G and H"
+    },
+    {
+      "item": "Larval survey records",
+      "blocks": "Target C; any claim about confirmed Anopheles breeding"
+    },
+    {
+      "item": "Numerical weather prediction rainfall/temperature",
+      "blocks": "operational forecast mode (system stays a hindcast)"
+    },
+    {
+      "item": "Additional weather stations",
+      "blocks": "spatially varying meteorology; cross-station validation"
+    }
+  ]
+}

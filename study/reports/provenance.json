@@ -1,0 +1,23 @@
+{
+  "project": "gikomero-habitat-forecast-PAPER-RUN",
+  "study_area": "Gikomero Sector, Gasabo District, Kigali City, Rwanda",
+  "mode": "hindcast",
+  "available_sources": [
+    "meteo",
+    "sentinel1"
+  ],
+  "missing_sources": [
+    "sentinel2",
+    "terrain",
+    "entomology",
+    "nwp_forecast"
+  ],
+  "enabled_targets": [
+    "A_new_water"
+  ],
+  "blocked_targets": {
+    "B_suitable_habitat": "sentinel2 export absent",
+    "C_anopheles": "no larval survey records; model cannot claim confirmed Anopheles breeding, only POTENTIAL suitable habitat"
+  },
+  "seed": 20260909
+}

@@ -1,0 +1,33 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt pytest httpx
+      - run: pytest -q tests
+
+  deploy-space:
+    # Rebuilds the Hugging Face Space after tests pass on main.
+    # Needs repository secret HF_TOKEN (write) and variable HF_SPACE (e.g. HappyAxelo/rinda).
+    needs: test
+    if: github.event_name == 'push' && vars.HF_SPACE != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Factory-rebuild the Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          curl -fsS -X POST -H "Authorization: Bearer $HF_TOKEN" \
+            "https://huggingface.co/api/spaces/${{ vars.HF_SPACE }}/restart?factory=true"

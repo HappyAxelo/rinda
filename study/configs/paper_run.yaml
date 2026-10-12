@@ -1,0 +1,271 @@
+# =====================================================================
+# Malaria Habitat Forecast (mhf) — master configuration
+#
+# Everything the pipeline does is driven from this file. To re-run the
+# study with new data, edit paths + date windows here; do not edit code.
+# =====================================================================
+
+project:
+  name: gikomero-habitat-forecast-PAPER-RUN
+  # Scope statement carried into every report so claims cannot drift.
+  study_area: "Gikomero Sector, Gasabo District, Kigali City, Rwanda"
+  scope_note: >
+    Meteorological forcing is supplied by a single automatic weather station.
+    Meteorological predictors therefore vary in time but NOT in space.
+    Spatial variation in predictors comes from Sentinel-1, Sentinel-2 and terrain.
+  seed: 20260909
+
+paths:
+  raw: data/raw
+  interim: data/interim
+  processed: data/processed
+  outputs: outputs
+  models: models
+  figures: figures
+  reports: reports
+
+# ---------------------------------------------------------------------
+# DATA SOURCES
+# A source with present:false is skipped everywhere (features, ablation,
+# fusion branches). This is how the project stays runnable as data arrives.
+# ---------------------------------------------------------------------
+sources:
+  meteo:
+    present: true
+    path: data/raw/Cleaned_meteo_rwanda_daily_gee.csv
+    date_col: date
+    station_col: station
+    # Columns that must exist; loader fails loudly if they do not.
+    required: [station, date, longitude, latitude, elevation_m,
+               temp_mean_c, temp_min_c, temp_max_c, rainfall_mm,
+               humidity_mean_pct]
+    # Humidity is gated: audit found incomplete days biased ~13 pts low.
+    humidity_gate_col: humidity_complete
+    humidity_gate_required: true
+
+  sentinel1:
+    present: True           # -> set true once gee/01_extract_s1.js has been run
+    path: data/raw/s1_site_timeseries.csv
+    required: [site_id, date, vv_db, vh_db, n_valid_px, rel_orbit, pass]
+    # Restrict to ONE orbit so backscatter change reflects surface change.
+    orbit_pass: DESCENDING
+    rel_orbit: null          # null = keep all tracks of that pass; else int
+    # Buffer used for water classification. Other radii become extra
+    # features (VV_DB_<b>M) plus scale-contrast terms, never discarded.
+    primary_buffer_m: 50
+
+  sentinel2:
+    present: false           # -> set true once gee/02_extract_s2.js has been run
+    path: data/raw/s2_site_timeseries.csv
+    required: [site_id, date, ndvi, ndwi, mndwi, evi, ndmi, n_valid_px]
+    max_cloud_frac: 0.4
+
+  terrain:
+    present: false           # -> set true once gee/03_extract_terrain.js has been run
+    path: data/raw/terrain_static.csv
+    required: [site_id, elevation_m, slope_deg, aspect_deg, twi,
+               flow_accum, dist_drainage_m, dist_permanent_water_m]
+
+  entomology:
+    present: false           # <-- BLOCKS Target C until true
+    path: data/raw/larval_surveys.csv
+    required: [site_id, date, latitude, longitude, water_present,
+               larvae_present, anopheles_present, habitat_type,
+               water_depth_cm, vegetation_cover_pct, n_dips, method]
+
+  nwp_forecast:
+    present: false           # <-- BLOCKS operational forecast mode until true
+    path: data/raw/nwp_forecast.csv
+    required: [date, issue_date, lead_days, rain_mm_fcst, temp_mean_c_fcst]
+
+# ---------------------------------------------------------------------
+# WATER DETECTION — thresholds are CALIBRATED, not assumed.
+# The prototype values below are starting points only (see calibration).
+# ---------------------------------------------------------------------
+water_detection:
+  method: calibrated_threshold    # {fixed_threshold, otsu, calibrated_threshold}
+  prototype:
+    vv_db_max: -17.0
+    vh_db_max: -23.0
+  calibration:
+    enabled: true
+    # Grid searched on the TRAIN window only, scored against whichever
+    # reference is available (entomology > s2_mndwi > none -> keep prototype).
+    reference: s2_mndwi          # {entomology, s2_mndwi, none}
+    mndwi_water_threshold: 0.0
+    vv_grid: [-20.0, -19.0, -18.0, -17.0, -16.0, -15.0]
+    vh_grid: [-26.0, -25.0, -24.0, -23.0, -22.0, -21.0]
+    require_both: true           # pixel is water only if VV and VH both below
+  # Minimum consecutive wet passes for a "habitat" (not just a wet pixel).
+  min_persistence_passes: 1
+
+# ---------------------------------------------------------------------
+# TARGETS — hierarchical. Only targets whose inputs exist are built.
+# ---------------------------------------------------------------------
+targets:
+  horizons_days: [7, 14]
+  tolerance_days: 2          # match t+h to nearest acquisition within +/- this
+  A_new_water:
+    enabled: true
+    # dry at t (and for lookback_dry_days before), wet at t+h
+    lookback_dry_days: 3
+  B_suitable_habitat:
+    enabled: true            # needs sentinel2 + terrain for the suitability screen
+    # A water body counts as "potentially suitable" if it is NOT permanent
+    # and sits in a plausible setting. Rules are declared, not learned.
+    max_water_frequency_30d: 0.80     # exclude permanent water bodies
+    require_vegetation_proximity: true
+    ndvi_min_neighbourhood: 0.25
+  C_anopheles:
+    enabled: false           # auto-disabled while sources.entomology.present is false
+    positive_field: anopheles_present
+
+# ---------------------------------------------------------------------
+# FEATURES
+# ---------------------------------------------------------------------
+features:
+  meteo:
+    windows_days: [1, 3, 5, 7, 14]
+    lags_days: [1, 2, 3, 5, 7, 14]
+    rain_event_threshold_mm: 1.0
+    dry_day_threshold_mm: 0.2
+    climatology_years_min: 2       # anomalies need >= this many years
+  sar:
+    freq_windows_days: [7, 14, 30]
+    transitions: true              # new / disappearing / expanding / stable water
+    variance_window_days: 30
+    rain_response: true            # backscatter change conditioned on antecedent rain
+    rain_response_lags: [1, 2, 3, 5]
+  optical:
+    windows_days: [7, 14]
+    interpolate: false             # NEVER fabricate optical observations
+    emit_availability_flag: true
+  buffers_m: [10, 50, 100, 250]    # multi-scale extraction radii
+
+# ---------------------------------------------------------------------
+# VALIDATION — no random splits anywhere in the reported results.
+# ---------------------------------------------------------------------
+validation:
+  schemes: [V1_random, V2_spatial_block, V3_leave_block_out, V4_forward_chain]
+  report_v1_as_reference_only: true   # V1 exists only to quantify optimism
+  temporal:
+    train_end: '2024-12-31'
+    val_end: '2025-08-31'
+    test_start: '2025-09-01'
+  forward_chain:
+    n_splits: 5
+    min_train_days: 365
+    gap_days: 14                      # >= max horizon, prevents label bleed
+  spatial:
+    block_size_m: 500
+    assignment: checkerboard
+    n_folds: 5
+    max_folds: 6        # cap leave-one-block-out; cost is linear in folds
+  group_col: site_id                  # a site never spans train and test
+
+# ---------------------------------------------------------------------
+# MODELS
+# ---------------------------------------------------------------------
+models:
+  # 'fast' shrinks ensembles for smoke tests; 'full' for reported runs.
+  profile: full
+  tabular:
+    - logistic_regression
+    - random_forest
+    - xgboost
+  temporal:
+    - lstm
+    - gru
+    - tcn
+  fusion:
+    - multimodal_multitask          # separate branches + attention + 2 heads
+  # Deep models are SKIPPED unless the power condition below is met.
+  power_gate:
+    min_positive_sequences: 500
+    min_independent_events: 100     # audit: wet spells, not raw rows
+  imbalance:
+    strategy: class_weight          # {class_weight, focal, undersample, none}
+    focal_gamma: 2.0
+    # SMOTE deliberately absent: it interpolates across time and leaks.
+  multitask:
+    enabled: true
+    compare_against_separate: true
+
+# ---------------------------------------------------------------------
+# FUSION COMPARISON (methodological contribution)
+# ---------------------------------------------------------------------
+fusion_study:
+  strategies: [early, intermediate, late]
+  branches: [satellite_sar, satellite_optical, meteo_iot, terrain]
+
+# ---------------------------------------------------------------------
+# ABLATION — Models A..I from the study design
+# ---------------------------------------------------------------------
+ablation:
+  A_meteo_only:        [meteo]
+  B_s1_only:           [sar]
+  C_s2_only:           [optical]
+  D_iot_meteo:         [meteo, iot]
+  E_s1_s2:             [sar, optical]
+  F_eo_meteo:          [sar, optical, meteo]
+  G_eo_meteo_terrain:  [sar, optical, meteo, terrain]
+  H_all_sources:       [sar, optical, meteo, iot, terrain]
+  I_full_temporal:     [sar, optical, meteo, iot, terrain]   # + sequence model
+
+# ---------------------------------------------------------------------
+# EVALUATION
+# ---------------------------------------------------------------------
+evaluation:
+  primary_metric: pr_auc
+  metrics: [accuracy, precision, recall, f1, specificity, balanced_accuracy,
+            roc_auc, pr_auc, mcc, brier, log_loss, ece]
+  bootstrap:
+    n: 1000
+    unit: spatial_block            # resample blocks, not rows
+    ci: 0.95
+  stratify_by: [season, rainfall_regime, horizon]
+  rainfall_regime_bins_mm: [0, 5, 20, 1000]   # low / moderate / heavy (7-day cum)
+  threshold_optimisation:
+    enabled: true
+    objective: f1                  # chosen on VALIDATION only, never on test
+
+# ---------------------------------------------------------------------
+# UNCERTAINTY
+# ---------------------------------------------------------------------
+uncertainty:
+  methods: [ensemble_variance, mc_dropout, conformal]
+  mc_dropout_passes: 50
+  conformal:
+    alpha: 0.1                     # 90% coverage
+    method: mondrian               # class-conditional
+  calibration: isotonic            # {none, platt, isotonic}
+
+# ---------------------------------------------------------------------
+# MAPPING + OPERATIONAL PRIORITY
+# ---------------------------------------------------------------------
+mapping:
+  risk_classes:                    # starting points; re-optimised on validation
+    very_low: [0.00, 0.20]
+    low:      [0.20, 0.40]
+    moderate: [0.40, 0.60]
+    high:     [0.60, 0.80]
+    very_high: [0.80, 1.00]
+  optimise_class_breaks: true
+
+priority:
+  # Operational priority is NOT the same as ecological probability.
+  weights:
+    probability: 0.40
+    persistence: 0.20
+    habitat_size: 0.15
+    low_uncertainty: 0.15
+    population_exposure: 0.10     # dropped + renormalised if layer absent
+  accessibility_penalty: true
+  top_n: 200
+
+# ---------------------------------------------------------------------
+# EXPLAINABILITY — cost knobs only; what is computed is fixed in code.
+# ---------------------------------------------------------------------
+explain:
+  n_repeats: 5        # grouped permutation repeats
+  shap_rows: 3000     # rows sampled for SHAP on the test set

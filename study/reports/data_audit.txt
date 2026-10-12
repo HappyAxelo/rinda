@@ -1,0 +1,54 @@
+========================================================================
+DATA AUDIT — gikomero-habitat-forecast
+study area : Gikomero Sector, Gasabo District, Kigali City, Rwanda
+mode       : HINDCAST
+========================================================================
+
+[PRESENT] meteo        rows=979 cols=19
+           dates 2023-03-22 .. 2026-01-15 (span 1031d, coverage 95.0%)
+           sites=1 duplicates=0
+           - SINGLE STATION (GIKOMERO). Meteorological predictors vary in time but NOT in space. Any apparent spatial skill comes from SAR/optical/terrain, not from weather.
+           - 168 independent wet spells (>=1 mm runs) across 979 daily rows. Effective meteorological sample size ~= 168, not 979.
+           - Humidity complete on 259/979 days (26.5%). Incomplete days differ by +12.8 pts -> NOT missing at random. Gate on the flag; never impute across it.
+           - 5 days report exactly 0.0% RH (implausible) -> treat as missing.
+
+[PRESENT] sentinel1    rows=512959 cols=8
+           dates 2023-03-01 .. 2026-01-26 (span 1063d, coverage 20.0%)
+           sites=600 duplicates=1759
+           - 4 buffer radii present [np.int64(10), np.int64(50), np.int64(100), np.int64(250)]: 512959 rows describe about 127800 site-dates. The loader pivots radii into columns; it does NOT collapse them, so the multi-scale design is preserved.
+           - 2 relative orbits present [21.0, 123.0]. Tracks with different incidence angles carry a systematic backscatter offset, so rel_orbit is retained as a model feature.
+           - 1759 rows share (site, date, buffer, orbit) -- two tracks imaging the same day. These are genuine repeat looks and are averaged in LINEAR POWER by the loader, not discarded.
+
+[ABSENT ] sentinel2    data/raw/s2_site_timeseries.csv
+           - file absent or present:false
+
+[ABSENT ] terrain      data/raw/terrain_static.csv
+           - file absent or present:false
+
+[ABSENT ] entomology   data/raw/larval_surveys.csv
+           - file absent or present:false
+
+[ABSENT ] nwp_forecast data/raw/nwp_forecast.csv
+           - file absent or present:false
+
+========================================================================
+FEASIBILITY
+========================================================================
+  modelling table buildable : True
+  enabled targets           : ['A_new_water']
+  blocked: B_suitable_habitat     -> sentinel2 export absent
+  blocked: C_anopheles            -> no larval survey records; model cannot claim confirmed Anopheles breeding, only POTENTIAL suitable habitat
+  cross-station validation  : False
+  deep learning             : CHECK_AT_TRAIN_TIME (Sequence count is known only after label generation; the trainer re-checks this gate and refuses to report a deep model that fails it.)
+
+REQUIRED LATER
+  - Sentinel-2 per-site time series
+      blocks: optical features; Target B suitability screen
+  - Terrain rasters (DEM, slope, TWI, flow accumulation)
+      blocks: terrain features; ablation arms G and H
+  - Larval survey records
+      blocks: Target C; any claim about confirmed Anopheles breeding
+  - Numerical weather prediction rainfall/temperature
+      blocks: operational forecast mode (system stays a hindcast)
+  - Additional weather stations
+      blocks: spatially varying meteorology; cross-station validation

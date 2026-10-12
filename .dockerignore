@@ -1,0 +1,8 @@
+var/
+.git/
+.github/
+deploy/
+tests/
+**/__pycache__/
+.pytest_cache/
+*.ps1

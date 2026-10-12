@@ -1,0 +1,121 @@
+{
+  "n": 140,
+  "target_categories": {
+    "A Environmental observation": 57,
+    "B Habitat mapping": 59,
+    "C Habitat suitability modelling": 51,
+    "D Larval habitat prediction": 31,
+    "E Productive habitat prediction": 0,
+    "F Adult vector prediction": 28,
+    "G Transmission-related prediction": 10,
+    "H Prospective forecasting": 3,
+    "I Target verification": 2,
+    "J Targeted intervention": 1,
+    "K Intervention outcome": 9
+  },
+  "target_categories_by_basis": {
+    "A Environmental observation": {
+      "Title/abstract only": 29,
+      "Full text (open-access passages)": 20,
+      "Full text (reviewer)": 8
+    },
+    "B Habitat mapping": {
+      "Title/abstract only": 34,
+      "Full text (open-access passages)": 16,
+      "Full text (reviewer)": 9
+    },
+    "C Habitat suitability modelling": {
+      "Full text (open-access passages)": 26,
+      "Title/abstract only": 22,
+      "Full text (reviewer)": 3
+    },
+    "D Larval habitat prediction": {
+      "Title/abstract only": 15,
+      "Full text (open-access passages)": 11,
+      "Full text (reviewer)": 5
+    },
+    "E Productive habitat prediction": {},
+    "F Adult vector prediction": {
+      "Full text (reviewer)": 11,
+      "Title/abstract only": 10,
+      "Full text (open-access passages)": 7
+    },
+    "G Transmission-related prediction": {
+      "Full text (open-access passages)": 5,
+      "Title/abstract only": 4,
+      "Full text (reviewer)": 1
+    },
+    "H Prospective forecasting": {
+      "Title/abstract only": 2,
+      "Full text (reviewer)": 1
+    },
+    "I Target verification": {
+      "Full text (open-access passages)": 1,
+      "Title/abstract only": 1
+    },
+    "J Targeted intervention": {
+      "Full text (reviewer)": 1
+    },
+    "K Intervention outcome": {
+      "Full text (reviewer)": 4,
+      "Title/abstract only": 4,
+      "Full text (open-access passages)": 1
+    }
+  },
+  "strength": {
+    "Outcome validity": {
+      "Entomological data used; independent reference not reported": 73,
+      "Unclear": 31,
+      "Direct entomological observation with field reference": 28,
+      "Environmental proxy": 8
+    },
+    "Temporal validity": {
+      "Contemporaneous or retrospective description": 61,
+      "Retrospective (no temporal target)": 27,
+      "Retrospective temporal model": 25,
+      "Scenario projection": 14,
+      "Not applicable": 11,
+      "Near-real-time or nowcast": 2
+    },
+    "Spatial validity": {
+      "Unclear": 115,
+      "Same-location validation": 23,
+      "Spatial hold-out": 1,
+      "Transferability assessed (no external test)": 1
+    },
+    "Temporal validation": {
+      "Unclear": 115,
+      "None reported": 16,
+      "Random split": 7,
+      "Temporal hold-out": 2
+    },
+    "Field validation": {
+      "None": 105,
+      "Field reference reported only": 24,
+      "Independent field validation": 8,
+      "Field comparison": 3
+    },
+    "Intervention linkage strength": {
+      "Proposed (prediction only)": 55,
+      "None": 50,
+      "Proposed (decision-support product)": 25,
+      "Evaluated": 7,
+      "Implemented": 3
+    }
+  },
+  "reporting_completeness": {
+    "2 Ecological setting": 93,
+    "3 Vector species": 100,
+    "4 Study period": 20,
+    "6 Spatial resolution": 38,
+    "7 Temporal resolution": 47,
+    "21 Forecast horizon": 41,
+    "27 Performance metric": 66,
+    "30 Major limitation": 23
+  },
+  "H_with_temporal_separation": 1,
+  "intervention_linkage_field_trap": {
+    "extraction_field_says_yes": 94,
+    "actually_delivered_intervention": 10
+  }
+}
