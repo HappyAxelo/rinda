@@ -1,104 +1,126 @@
-import { api, card, kpi, chart, fmt, icon, table, makeMap, legendControl, riskLegend, siteMarker, riskTag, decisionTag, css, series, statusTag, RISK, RISK_LABEL } from '../ui.js';
+import { api, card, chart, fmt, icon, table, makeMap, legendControl, riskLegend, siteMarker, footprintLayer, catTag, css, series, esc } from '../ui.js';
 
 let map;
 export function destroy() { map?.remove(); map = null; }
 
+const ICON = { critical: 'alert', warn: 'info', info: 'info' };
+
 export async function render(el, st) {
-  const h = st.h, date = st.date, b = st.boot;
-  const start = new Date(new Date(date) - 45 * 864e5).toISOString().slice(0, 10);
-  const [fc, ver, met, ev] = await Promise.all([
-    api.get(`/api/forecast?h=${h}&date=${date}`), api.get(`/api/verification?h=${h}`),
-    api.get(`/api/meteo?start=${start}&end=${date}`), api.get('/api/evidence'),
+  const h = st.h, b = st.boot;
+  const [fc, ver, alerts, fs] = await Promise.all([
+    api.get(`/api/forecast?h=${h}&date=${st.date}`), api.get(`/api/verification?h=${h}`),
+    api.get(`/api/alerts?h=${h}&date=${st.date}`), api.get('/api/field/summary'),
   ]);
-  const s = fc.summary, m = b.model.horizons[h], sc = m.test_scores;
-  const prevIdx = ver.findIndex((v) => v.date === s.issue_date) - 1;
-  const prev = prevIdx >= 0 ? ver[prevIdx] : null;
-  const rain14 = met.slice(-14).reduce((a, r) => a + (r.rainfall_mm || 0), 0);
-  const queue = fc.rows.filter((r) => r.conformal_decision !== 'no_formation').slice(0, 12);
+  const canField = st.can('read:field');
+  const [tasks, obs, ivs] = canField ? await Promise.all([api.get('/api/tasks'), api.get('/api/observations'), api.get('/api/interventions')]) : [[], [], []];
+  const m = fc.meta, s = fc.summary, c = s.categories;
+  const cats = b.categories;
+  const openAlerts = alerts.filter((a) => a.state === 'open');
+  const tasked = new Set(tasks.filter((t) => t.issue_date === s.issue_date && t.status !== 'cancelled').map((t) => t.site_id));
+  const awaiting = fc.rows.filter((r) => (r.category === 'high' || r.category === 'insufficient') && !tasked.has(r.site_id));
+  const outstanding = tasks.filter((t) => ['assigned', 'in_progress'].includes(t.status));
+  const moderateOn = cats.moderate && c.moderate > 0;
 
   el.innerHTML = `
   <div class="page-head">
-    <div><h1>Operating picture</h1>
-      <p>Forecast issued ${fmt.date(s.issue_date)} for new surface water by ${fmt.date(s.target_date)} across ${b.tenant.name}, ${b.tenant.district} District. ${b.claim}</p></div>
+    <div><h1>Situation overview</h1>
+      <p>${esc(b.tenant.name)}, ${esc(b.tenant.district)} District. ${esc(b.target)}</p></div>
     <div class="actions">
-      <a class="btn" href="/api/bulletin?h=${h}&date=${s.issue_date}" target="_blank" rel="noopener">${icon('print')}Issue bulletin</a>
-      <a class="btn primary" href="#/missions">${icon('mission')}Plan sorties</a>
+      <a class="btn" href="/api/v1/bulletin?h=${h}&date=${s.issue_date}" target="_blank" rel="noopener">${icon('print')}Bulletin</a>
+      ${st.can('assign:task') ? `<a class="btn primary" href="#/field">${icon('clipboard')}Assign inspections</a>` : `<a class="btn primary" href="#/forecast">${icon('forecast')}Open forecast</a>`}
     </div>
   </div>
-  <div class="grid g-4">
-    ${kpi('Formation calls', fmt.n(s.decisions.formation || 0), `${s.alerts} above operating threshold · ${fmt.n(s.n_sites)} sites assessed`, { accent: true, id: 'spkCalls' })}
-    ${kpi('Verify before action', fmt.n(s.decisions.uncertain || 0), 'Model cannot decide at 90% confidence', { id: 'spkUnc' })}
-    ${kpi('Forecast skill', fmt.n(sc.pr_auc / sc.base_rate, 1), `PR-AUC ${sc.pr_auc.toFixed(3)} vs base rate ${sc.base_rate.toFixed(3)} on untouched test window`, { unit: '× chance' })}
-    ${kpi('Rain, last 14 days', fmt.n(rain14, 1), `Gikomero AWS · ${met.length ? fmt.dshort(met.at(-1).date) : '–'} latest reading`, { unit: 'mm', id: 'spkRain' })}
+
+  <div class="status-strip" role="group" aria-label="Forecast status">
+    <div><div class="k">Forecast issued</div><div class="v">${fmt.date(m.issue_date)}</div><div class="m">${h}-day horizon${m.is_latest ? ' · latest issue' : ` · latest is ${fmt.dshort(m.latest_issue)}`}</div></div>
+    <div><div class="k">Valid for</div><div class="v">${fmt.dshort(m.valid_window[0])} – ${fmt.date(m.valid_window[1])}</div><div class="m">Target date ${fmt.date(m.target_date)} ± 2 days</div></div>
+    <div><div class="k">Freshness</div><div class="v" style="color:${m.status === 'stale' ? 'var(--crit)' : 'var(--good)'}">${m.status === 'stale' ? `Stale · ${m.age_days} days old` : 'Current'}</div><div class="m">Generated ${m.generated_utc ? fmt.date(m.generated_utc.slice(0, 10)) : '–'} (hindcast run)</div></div>
+    <div><div class="k">Inputs at issue</div><div class="v">Radar ${fmt.dshort(m.inputs.radar_last_pass)} · Weather ${fmt.dshort(m.inputs.weather_last_day)}</div><div class="m">${m.inputs.weather_lag_days > 2 ? `<span style="color:var(--warn)">Weather ${m.inputs.weather_lag_days} days behind issue</span>` : 'Inputs on time'}</div></div>
+    <div><div class="k">Model</div><div class="v" style="color:var(--warn)">Research stage</div><div class="m"><span class="mono">${m.model.fingerprint}</span> · <a href="#/replay">validation</a></div></div>
   </div>
+
+  <div class="cat-row" style="margin-top:14px">
+    ${['high', 'moderate', 'insufficient', 'lower'].map((k) => `
+      <section class="cat-tile ${k === 'moderate' && !moderateOn ? 'disabled' : ''}" title="Rule: ${esc(cats[k].rule)}">
+        <div>${catTag(k, false)}</div>
+        <div class="n">${k === 'moderate' && !moderateOn ? '–' : fmt.n(c[k] || 0)}</div>
+        <div class="d">${k === 'moderate' && !moderateOn ? 'Not configured: needs a threshold agreed with the programme.' : esc(cats[k].meaning)}</div>
+      </section>`).join('')}
+  </div>
+
   <div class="grid g-main" style="margin-top:14px">
-    ${card('Formation outlook', '<div class="map-host"><div class="map mid" id="ovMap"></div></div>', { flush: true, sub: `${h}-day horizon · click a site for its dossier` })}
+    ${card('Monitoring points', '<div class="map-host"><div class="map mid" id="ovMap" role="region" aria-label="Map of monitoring points by verification priority"></div></div>', { flush: true, sub: `${fmt.n(s.n_sites)} points assessed · click for evidence`, foot: '<span>Each point is a 50 m radar sample, not a confirmed breeding site.</span><a href="#/forecast">Table view</a>' })}
     <div class="grid" style="align-content:start">
-      ${card('Priority queue', '<div id="ovQueue"></div>', { flush: true, sub: 'Ranked by larviciding priority', foot: `<span>Priority = probability, persistence, certainty</span><a href="#/forecast">Full list ${icon('arrow')}</a>` })}
-      ${prev ? card('Last issue, checked against radar', `
-        <div class="grid g-3" style="gap:8px;text-align:center">
-          <div><div class="kpi" style="padding:0"><div class="val" style="font-size:22px">${prev.hits}</div><div class="meta">alerts confirmed</div></div></div>
-          <div><div class="kpi" style="padding:0"><div class="val" style="font-size:22px">${prev.false_alarms}</div><div class="meta">false alarms</div></div></div>
-          <div><div class="kpi" style="padding:0"><div class="val" style="font-size:22px">${prev.misses}</div><div class="meta">missed formations</div></div></div>
-        </div>`, { sub: fmt.date(prev.date) }) : ''}
+      ${card('Alerts and warnings', alertsHTML(m, alerts, openAlerts), { flush: true, sub: `${openAlerts.length} open` })}
+      ${card('Awaiting field verification', `<div class="list">${awaiting.slice(0, 6).map((r) => `<div><span><span class="mono">${r.site_id}</span> ${catTag(r.category)}</span><span class="sub">p ${r.probability.toFixed(2)}</span></div>`).join('') || '<div class="empty sm">Every flagged point on this issue has an inspection task.</div>'}</div>`,
+        { flush: true, sub: `${awaiting.length} without a task`, foot: canField ? '<a href="#/field">Field surveillance</a>' : '<span>Sign in as a supervisor to assign inspections.</span>' })}
     </div>
   </div>
+
   <div class="grid g-3" style="margin-top:14px">
-    ${card('Formation calls by issue', '<div class="chart" id="ovTimeline"></div>', { cls: 'span-2', sub: 'Click a bar to open that issue', foot: '<span>A call means the 90% conformal set contains only “formation”. Observed counts come from the next radar pass.</span>' })}
-    ${card('Pipeline health', pipeline(b, m))}
+    ${card('Outstanding inspections', canField ? listTasks(outstanding) : restricted(fs.tasks, 'tasks'), { flush: true, sub: `${(fs.tasks.assigned || 0) + (fs.tasks.in_progress || 0)} open · ${fs.overdue_tasks} overdue` })}
+    ${card('Recent field observations', canField ? listObs(obs.slice(0, 6)) : restricted(fs.observations, 'observations'), { flush: true, sub: fs.last_observation ? `last ${fmt.date(fs.last_observation.slice(0, 10))}` : 'none recorded' })}
+    ${card('Interventions and follow-up', canField ? listIv(ivs.slice(0, 6)) : restricted(fs.interventions, 'interventions'), { flush: true, sub: `${(fs.interventions.authorized || 0) + (fs.interventions.performed || 0)} awaiting follow-up` })}
   </div>
+
   <div class="grid g-3" style="margin-top:14px">
-    ${ev.objectives.map((o) => card(`${o.id} · ${o.paper}`, `<p style="margin:0 0 10px;font-weight:500">${o.title}</p>${statusTag(o.status)}<p style="color:var(--ink-2);font-size:12.5px;margin:10px 0 0">${o.evidence}</p>`, { foot: `<span>Open item: ${o.open}</span>` })).join('')}
+    ${card('Priority queue for this issue', '<div id="ovQueue"></div>', { flush: true, cls: 'span-2', sub: 'High priority first, then insufficient evidence' })}
+    ${card('Calls against later radar', '<div class="chart" id="ovTimeline"></div>', { sub: 'High-priority calls and formations observed, per issue', foot: '<span>Click a bar to open that issue.</span><a href="#/replay">Full validation</a>' })}
   </div>`;
 
-  // map
   map = makeMap('ovMap', { zoom: 12.5 });
-  const pts = [];
-  [...fc.rows].sort((a, z) => a.probability - z.probability).forEach((r) => { siteMarker(r, { onClick: (x) => window.openSite(x.site_id) }).addTo(map); pts.push([r.latitude, r.longitude]); });
-  L.marker([b.station.lat, b.station.lon], { icon: L.divIcon({ className: '', html: '<div class="station-pin"></div>', iconSize: [16, 16] }) }).bindTooltip('Gikomero AWS').addTo(map);
-  if (pts.length) map.fitBounds(pts, { padding: [20, 20] });
+  const rows = [...fc.rows].sort((a, z) => (a.category === 'high') - (z.category === 'high') || a.probability - z.probability);
+  rows.forEach((r) => siteMarker(r, { onClick: (x) => window.openSite(x.site_id) }).addTo(map));
+  footprintLayer(map, fc.rows);
+  L.marker([b.station.lat, b.station.lon], { icon: L.divIcon({ className: '', html: '<div class="station-pin"></div>', iconSize: [16, 16] }), title: 'Gikomero weather station' }).bindTooltip('Gikomero automatic weather station').addTo(map);
+  map.fitBounds(fc.rows.map((r) => [r.latitude, r.longitude]), { padding: [20, 20] });
   legendControl(map, riskLegend());
 
+  const queue = fc.rows.filter((r) => r.category === 'high' || r.category === 'insufficient')
+    .sort((a, z) => (z.category === 'high') - (a.category === 'high') || z.priority_score - a.priority_score).slice(0, 15);
   const t = table([
-    { h: 'Site', f: (r) => `<span class="mono">${r.site_id}</span>` },
-    { h: 'p', r: 1, f: (r) => r.probability.toFixed(3) },
-    { h: 'Class', f: (r) => riskTag(r.risk_class) },
-    { h: 'Call', f: (r) => decisionTag(r.conformal_decision) },
-  ], queue, { onRow: (r) => window.openSite(r.site_id), max: 330, empty: 'No actionable sites on this issue' });
+    { h: 'Point', f: (r) => `<span class="mono">${r.site_id}</span>` },
+    { h: 'Priority', f: (r) => catTag(r.category) },
+    { h: 'Probability', r: 1, f: (r) => r.probability.toFixed(3) },
+    { h: 'Uncertainty', f: (r) => r.uncertainty_band },
+    { h: 'Why', f: (r) => `<span style="color:var(--ink-2)">${r.category === 'high' ? '90% set contains only formation' : 'Model cannot decide at 90%'}${r.WATER_PERSISTENCE_PASSES ? ` · wet on ${r.WATER_PERSISTENCE_PASSES} recent passes` : ''}</span>` },
+    { h: 'Task', f: (r) => (tasked.has(r.site_id) ? '<span class="status st-good">Assigned</span>' : '<span style="color:var(--ink-3)">None</span>') },
+  ], queue, { onRow: (r) => window.openSite(r.site_id), max: 360, empty: 'Nothing flagged on this issue.' });
   document.getElementById('ovQueue').innerHTML = t.html; t.bind();
 
-  const calls = ver.map((v) => v.date);
-  const c = chart('ovTimeline', {
-    grid: { left: 40, right: 12, top: 40, bottom: 28 },
-    legend: { data: ['Formation calls', 'Verify first', 'Observed formations'] },
-    xAxis: { type: 'category', data: calls.map(fmt.dshort) },
-    yAxis: { type: 'value', name: 'sites' },
+  const ch = chart('ovTimeline', {
+    grid: { left: 36, right: 10, top: 36, bottom: 26 },
+    legend: { data: ['High-priority calls', 'Formations observed'] },
+    xAxis: { type: 'category', data: ver.map((v) => fmt.dshort(v.date)) }, yAxis: { type: 'value', name: 'points' },
     series: [
-      { name: 'Formation calls', type: 'bar', stack: 'c', barMaxWidth: 14, data: ver.map((v) => v.formation_calls), itemStyle: { color: css('--signal') } },
-      { name: 'Verify first', type: 'bar', stack: 'c', barMaxWidth: 14, data: ver.map((v) => v.uncertain), itemStyle: { color: css('--ink-3'), borderRadius: [3, 3, 0, 0] } },
-      { name: 'Observed formations', type: 'line', symbol: 'circle', symbolSize: 5, data: ver.map((v) => v.observed_formation), lineStyle: { width: 2, color: series(1) }, itemStyle: { color: series(1) } },
+      { name: 'High-priority calls', type: 'bar', barMaxWidth: 10, data: ver.map((v) => v.formation_calls), itemStyle: { color: css('--cat-high'), borderRadius: [2, 2, 0, 0] } },
+      { name: 'Formations observed', type: 'line', symbolSize: 4, data: ver.map((v) => v.observed_formation), lineStyle: { width: 2, color: series(1) }, itemStyle: { color: series(1) } },
     ],
   });
-  c.on('click', (p) => { st.date = ver[p.dataIndex].date; document.getElementById('dateSel').value = st.date; location.hash = '#/overview'; dispatchEvent(new HashChangeEvent('hashchange')); });
-
-  const spark = (id, data, color, type = 'line') => chart(id, {
-    grid: { left: 0, right: 0, top: 2, bottom: 0 }, tooltip: { show: false },
-    xAxis: { type: 'category', show: false, data: data.map((_, i) => i) }, yAxis: { type: 'value', show: false },
-    series: [{ type, data, showSymbol: false, barWidth: 3, lineStyle: { width: 1.5, color }, itemStyle: { color }, areaStyle: type === 'line' ? { color, opacity: .1 } : undefined }],
-  });
-  spark('spkCalls', ver.map((v) => v.formation_calls), css('--signal'));
-  spark('spkUnc', ver.map((v) => v.uncertain), css('--warn'));
-  spark('spkRain', met.slice(-30).map((r) => r.rainfall_mm || 0), series(1), 'bar');
+  ch.on('click', (p) => { const sel = document.getElementById('dateSel'); sel.value = ver[p.dataIndex].date; sel.dispatchEvent(new Event('change')); });
 }
 
-function pipeline(b, m) {
-  const src = b.sources;
-  const row = (name, ok, meta) => `<div class="kv-row"><span>${name}</span><span>${ok ? `<span class="status st-good">${icon('check')}${meta}</span>` : `<span class="status st-warn">${icon('lock')}${meta}</span>`}</span></div>`;
-  return [
-    row('Sentinel-1 radar', true, `to ${fmt.dshort(b.s1_last)}`),
-    row('Weather station', true, `to ${fmt.dshort(b.meteo_last)}`),
-    ...src.filter((s) => !s.present).map((s) => row(s.name, false, 'not connected')),
-    `<div class="kv-row"><span>Model</span><span class="mono">${m.fingerprint}</span></div>`,
-    `<div class="kv-row"><span>Engine reproduction</span><span>ΔPR-AUC ${m.reproduction.abs_diff_pr_auc.toFixed(4)}</span></div>`,
-  ].join('');
+function alertsHTML(m, alerts, open) {
+  const items = m.warnings.map((w) => `<div><span>${icon(ICON[w.level])} ${esc(w.message)}</span></div>`);
+  if (alerts.length) {
+    const n = (s) => alerts.filter((a) => a.state === s).length;
+    items.push(`<div><span>${icon('bell')} <b>${alerts.length}</b> high-priority alerts on this issue: ${open.length} open, ${n('actioned')} with a task, ${n('acknowledged')} acknowledged, ${n('dismissed')} dismissed, ${n('expired')} expired.</span>${open.length ? '<a class="btn sm" href="#/field">Review</a>' : ''}</div>`);
+  } else items.push('<div><span class="sub">No high-priority alerts on this issue.</span></div>');
+  return `<div class="list" style="max-height:260px;overflow:auto">${items.join('')}</div>`;
+}
+function restricted(counts, what) {
+  const n = Object.values(counts || {}).reduce((a, x) => a + x, 0);
+  return `<div class="empty sm">${icon('lock')}<span>${n} ${what} recorded. Details are visible to signed-in field, analyst and supervisor roles.</span></div>`;
+}
+function listTasks(ts) {
+  if (!ts.length) return '<div class="empty sm">No open inspection tasks.</div>';
+  return `<div class="list">${ts.slice(0, 6).map((t) => `<div><span><span class="mono">T${t.id}</span> · <span class="mono">${t.site_id}</span> · ${esc(t.assignee || '')}${t.demo ? ' <span class="badge">DEMO</span>' : ''}</span><span class="sub" style="${t.overdue ? 'color:var(--crit)' : ''}">due ${fmt.dshort(t.due_date)}${t.overdue ? ' · overdue' : ''}</span></div>`).join('')}</div>`;
+}
+function listObs(os) {
+  if (!os.length) return '<div class="empty sm">No field observations yet. Field officers record them under Field Surveillance.</div>';
+  return `<div class="list">${os.map((o) => `<div><span><span class="mono">${o.site_id}</span> · water ${o.water_present} · larvae ${o.larvae_present.replace('_', ' ')}${o.demo ? ' <span class="badge">DEMO</span>' : ''}</span><span class="sub">${o.status.replace('_', ' ')} · ${fmt.dshort(o.observed_at.slice(0, 10))}</span></div>`).join('')}</div>`;
+}
+function listIv(is) {
+  if (!is.length) return '<div class="empty sm">No interventions authorised.</div>';
+  return `<div class="list">${is.map((i) => `<div><span><span class="mono">I${i.id}</span> · <span class="mono">${i.site_id}</span> · ${i.method.replace('_', ' ')}${i.demo ? ' <span class="badge">DEMO</span>' : ''}</span><span class="sub">${i.status}${i.outcome ? ` · ${i.outcome.replace('_', ' ')}` : ''}</span></div>`).join('')}</div>`;
 }

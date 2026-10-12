@@ -19,8 +19,8 @@ export async function render(el, st) {
 
   el.innerHTML = `
   <div class="page-head">
-    <div><h1>Mission planning</h1><p>Turns the ${st.h}-day forecast for ${fmt.date(st.date)} into flyable sorties. Formation calls are flown as <b>verify-and-treat</b>; verify-first sites are flown <b>inspect-only</b> with the spray channel locked unless the onboard verifier clears them.</p></div>
-    <div class="actions"><button class="btn" id="mpPreview">${icon('route')}Recompute</button><button class="btn primary" id="mpCommit">${icon('check')}Commit mission</button></div>
+    <div><h1>Mission planning</h1><p>Turns the ${st.h}-day forecast for ${fmt.date(st.date)} into flyable sorties. High-priority points are flown as <b>verify, then treat if authorised</b>; insufficient-evidence points are flown <b>inspect-only</b>. Flight-controller files are released only after a supervisor approves the mission.</p></div>
+    <div class="actions"><button class="btn" id="mpPreview">${icon('route')}Recompute</button>${st.can('plan:mission') ? `<button class="btn primary" id="mpCommit">${icon('check')}Commit mission</button>` : '<span class="hint">Sign in as an analyst or supervisor to commit missions.</span>'}</div>
   </div>
   <div class="grid g-4" id="mpKpis"></div>
   <div class="grid g-main" style="margin-top:14px">
@@ -60,7 +60,7 @@ export async function render(el, st) {
   const run = async (save = false) => {
     read();
     try {
-      last = await api.post('/api/missions/plan', { h: st.h, date: st.date, ...cfg, save, author: document.getElementById('roleSel').selectedOptions[0].text });
+      last = await api.post('/api/missions/plan', { h: st.h, date: st.date, ...cfg, save });
     } catch (e) { toast('Planning failed: ' + e.message, true); return; }
     draw(last, st, cfg);
     if (save) { toast(`Mission ${last.id} committed to the register`); register(st); }
@@ -70,7 +70,7 @@ export async function render(el, st) {
   [['mt', 'mtV', (v) => v], ['mu', 'muV', (v) => (+v).toFixed(2)], ['zr', 'zrV', (v) => `${v} m`]].forEach(([i, o, f]) => document.getElementById(i).addEventListener('input', (e) => { document.getElementById(o).textContent = f(e.target.value); soon(); }));
   el.querySelectorAll('#incU, #lm, input[id^="a_"], input[id^="t_"]').forEach((x) => x.addEventListener('change', soon));
   document.getElementById('mpPreview').addEventListener('click', () => run(false));
-  document.getElementById('mpCommit').addEventListener('click', () => run(true));
+  document.getElementById('mpCommit')?.addEventListener('click', () => run(true));
   await run(false);
   if (focus) toast(`Showing the plan for ${st.date}; site ${focus} is ${last.sorties.some((s) => s.waypoints.some((w) => w.site_id === focus)) ? 'routed' : 'not among the selected targets'}.`);
   register(st);
@@ -142,19 +142,21 @@ function draw(res, st, cfg) {
 async function register(st) {
   const ms = await api.get('/api/missions');
   const next = { PLANNED: 'APPROVED', APPROVED: 'IN_FLIGHT', IN_FLIGHT: 'COMPLETED' };
-  const label = { APPROVED: 'Approve', IN_FLIGHT: 'Mark airborne', COMPLETED: 'Mark complete' };
+  const label = { APPROVED: 'Approve for flight', IN_FLIGHT: 'Mark airborne', COMPLETED: 'Mark complete' };
+  const allowed = (m) => next[m.status] && (next[m.status] === 'APPROVED' ? st.can('approve:mission') : st.can('plan:mission'));
+  const released = (m) => ['APPROVED', 'IN_FLIGHT', 'COMPLETED'].includes(m.status);
   const t = table([
-    { h: 'Mission', f: (m) => `<span class="mono">${m.id}</span>` },
+    { h: 'Mission', f: (m) => `<span class="mono">${m.id}</span>${m.demo ? ' <span class="badge">DEMO</span>' : ''}` },
     { h: 'Issue', f: (m) => `${m.issue_date} · ${m.horizon}d` }, { h: 'Status', f: (m) => statusTag(m.status) },
     { h: 'Sorties', r: 1, f: (m) => m.totals.sorties ?? 0 }, { h: 'Targets', r: 1, f: (m) => m.totals.targets ?? 0 },
     { h: 'Flight', r: 1, f: (m) => fmt.min(m.totals.flight_min) }, { h: 'Committed by', f: (m) => esc(m.author) },
     { h: 'Created (UTC)', f: (m) => `<span class="mono">${m.created_utc.replace('T', ' ').replace('Z', '')}</span>` },
-    { h: 'Export', f: (m) => `<a class="btn sm" href="/api/missions/${m.id}/export?fmt=plan">.plan</a> <a class="btn sm" href="/api/missions/${m.id}/export?fmt=wpl">.waypoints</a> <a class="btn sm" href="/api/missions/${m.id}/export?fmt=geojson">GeoJSON</a> <a class="btn sm" href="/api/missions/${m.id}/export?fmt=csv">CSV</a>` },
-    { h: '', f: (m) => (next[m.status] ? `<button class="btn sm primary" data-adv="${m.id}" data-to="${next[m.status]}">${label[next[m.status]]}</button>` : '') },
+    { h: 'Export', f: (m) => (st.can('plan:mission') ? `${released(m) ? `<a class="btn sm" href="/api/v1/missions/${m.id}/export?fmt=plan">.plan</a> <a class="btn sm" href="/api/v1/missions/${m.id}/export?fmt=wpl">.waypoints</a>` : '<span class="hint" title="Released after supervisor approval">flight files locked</span>'} <a class="btn sm" href="/api/v1/missions/${m.id}/export?fmt=geojson">GeoJSON</a> <a class="btn sm" href="/api/v1/missions/${m.id}/export?fmt=csv">CSV</a>` : '<span class="hint">sign in</span>') },
+    { h: '', f: (m) => (allowed(m) ? `<button class="btn sm primary" data-adv="${m.id}" data-to="${next[m.status]}">${label[next[m.status]]}</button>` : '') },
   ], ms, { max: 360, empty: 'No missions committed yet. Plan a day and press Commit mission.' });
-  document.getElementById('mpRegister').innerHTML = card(`Mission register · ${ms.length}`, t.html, { flush: true, sub: 'Every state change is written to the audit trail', foot: '<span>.plan exports carry one sortie each (first sortie by default; add &amp;sortie=S02 for others). Spray commands are never in the file: the companion computer owns the valve.</span>' });
+  document.getElementById('mpRegister').innerHTML = card(`Mission register · ${ms.length}`, t.html, { flush: true, sub: 'Every state change is written to the audit trail', foot: '<span>Flight files are released only for missions a supervisor has approved. Each .plan carries one sortie (add &amp;sortie=S02 for others) and no spray commands: treatment needs onboard confirmation and the mission approval.</span>' });
   document.querySelectorAll('[data-adv]').forEach((x) => x.addEventListener('click', async () => {
-    await api.post(`/api/missions/${x.dataset.adv}/status`, { status: x.dataset.to, actor: document.getElementById('roleSel').selectedOptions[0].text });
+    try { await api.post(`/api/missions/${x.dataset.adv}/status`, { status: x.dataset.to }); } catch (e) { toast(e.message, true); return; }
     toast(`${x.dataset.adv} → ${x.dataset.to.replace('_', ' ').toLowerCase()}`);
     register(st);
   }));

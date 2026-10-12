@@ -16,7 +16,7 @@ export async function render(el, st) {
   el.innerHTML = `
   <div class="page-head">
     <div><h1>Model assurance · ${h}-day</h1><p>Every figure below comes from one untouched temporal test window (${eng.test_window[0]} to ${eng.test_window[1]}) the model never saw during fitting, calibration or threshold choice. Accuracy is deliberately absent: predicting "no formation" everywhere scores ${fmt.pct(sc.majority_accuracy)}.</p></div>
-    <div class="actions"><a class="btn" href="/api/assurance" target="_blank">${icon('file')}Raw assurance record</a></div>
+    <div class="actions"><a class="btn" href="/api/v1/assurance" target="_blank">${icon('file')}Raw assurance record</a></div>
   </div>
   <div class="grid g-4">
     ${kpi('PR-AUC', sc.pr_auc.toFixed(3), `95% block-bootstrap CI ${ho.pr_auc_ci.lo.toFixed(3)} – ${ho.pr_auc_ci.hi.toFixed(3)} · base rate ${sc.base_rate.toFixed(3)}`, { accent: true })}

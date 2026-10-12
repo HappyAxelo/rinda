@@ -25,14 +25,14 @@ jobs:
         run: |
           python -c "import sys; sys.path.insert(0, 'server'); from engine import ENGINE; ENGINE.load()"
           uvicorn --app-dir server main:app --port 8740 & PID=$!
-          for i in $(seq 90); do curl -sf localhost:8740/api/health | grep -q ready && break; sleep 2; done
-          for u in /api/bootstrap "/api/forecast?h=7" "/api/forecast?h=14" /api/site/G0221 \
+          for i in $(seq 90); do curl -sf localhost:8740/api/v1/ready | grep -q '"ready"' && break; sleep 2; done
+          for u in /api/v1/bootstrap "/api/v1/forecast?h=7" "/api/v1/replay?h=7" "/api/v1/alerts?h=7" /api/v1/field/summary "/api/v1/scenario?site=G0473&date=2026-01-20&h=7" "/api/forecast?h=14" /api/site/G0221 \
                    "/api/explain?site=G0221&date=2025-11-26&h=7" "/api/scenario?site=G0221&date=2025-11-26&h=7&rain=2" \
                    /api/assurance /api/evidence /api/meteo /api/meteo/summary "/api/verification?h=7" "/api/bulletin?h=7"; do
             curl -sf "localhost:8740$u" > /dev/null || echo "::error::endpoint failed: $u"
           done
-          curl -sf -X POST localhost:8740/api/economics -H 'content-type: application/json' -d '{}' > /dev/null
-          curl -sf -X POST localhost:8740/api/missions/plan -H 'content-type: application/json' -d '{"h":7,"date":"2025-11-26"}' > /dev/null
+          curl -sf -X POST localhost:8740/api/v1/economics -H 'X-RINDA: 1' -H 'content-type: application/json' -d '{}' > /dev/null
+          curl -sf -X POST localhost:8740/api/v1/missions/plan -H 'X-RINDA: 1' -H 'content-type: application/json' -d '{"h":7,"date":"2025-11-26"}' > /dev/null
           hwm=$(awk '/VmHWM/{print $2}' /proc/$PID/status)
           rss=$(awk '/VmRSS/{print $2}' /proc/$PID/status)
           echo "::notice title=Memory::peak RSS $((hwm/1024)) MB, current $((rss/1024)) MB (budget 450 MB)"
@@ -53,7 +53,7 @@ jobs:
       - name: Container serves the console
         run: |
           docker run -d --name rinda -p 7860:7860 rinda
-          for i in $(seq 60); do curl -sf localhost:7860/api/health | grep -q ready && break; sleep 2; done
+          for i in $(seq 60); do curl -sf localhost:7860/api/v1/ready | grep -q '"ready"' && break; sleep 2; done
           curl -sf localhost:7860/ | grep -q RINDA
           mem=$(docker stats --no-stream --format '{{.MemUsage}}' rinda)
           echo "::notice title=Container memory::$mem"

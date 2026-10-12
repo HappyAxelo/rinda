@@ -36,7 +36,7 @@ docker run -p 7860:7860 rinda
 
 Open http://localhost:8740 (or :7860 for Docker). The first start fits both forecast models
 from the bundled study tables (under a minute) and caches them in `var/models/`; the Docker
-image fits them at build time. API reference: `/api/docs`.
+image fits them at build time. API reference: `/api/docs` (documented base path `/api/v1`).
 
 Tests: `pip install pytest httpx && pytest -q tests`.
 
@@ -47,6 +47,10 @@ Tests: `pip install pytest httpx && pytest -q tests`.
 | `RINDA_STUDY` | `./study` | Study bundle to serve. Point it at a live `habitat-forecast` checkout to follow new pipeline runs. |
 | `RINDA_VAR` | `./var` | Models cache, operations database, logs. Mount persistent storage here in production. |
 | `RINDA_STATION_KEYS` | none | JSON map of field-node id to key, e.g. `{"ESP32-GKM-01":"..."}`. Placeholder keys never authenticate. |
+| `RINDA_ADMIN_EMAIL`, `RINDA_ADMIN_PASSWORD` | generated | First administrator (used once) |
+| `RINDA_PUBLIC_READ` | 1 | Anonymous read access to forecasts |
+| `RINDA_DEMO` | 0 | Demonstration sign-in per role |
+| `RINDA_SECURE_COOKIES` | 0 | Set 1 behind HTTPS |
 | `PORT` | 7860 (Docker) | Listening port. |
 
 ## Deployment
@@ -61,6 +65,32 @@ Tests: `pip install pytest httpx && pytest -q tests`.
 - **Programme use (RBC / MoH):** run the Docker image on a server in the national data centre
   or at RBC, with `RINDA_VAR` on persistent storage, behind the ministry's identity provider
   and HTTPS.
+
+## Status
+
+**Technically deployable for controlled evaluation; not scientifically validated for intervention decisions.**
+The forecast model is research stage (a persistence baseline still scores higher) and the data archive ends on
+2026-01-20, so every forecast is shown as stale. See `docs/readiness-assessment.md`.
+
+## Roles and sign-in
+
+Viewer, Field officer, Technical analyst, Supervisor and Institution administrator; permissions are enforced on the
+server (`server/security.py`). With `RINDA_PUBLIC_READ=1` anyone can read forecasts and validation without an account.
+With `RINDA_DEMO=1` (the hosted demonstration) a visitor can sign in as any role without a password; everything such
+an account creates is labelled DEMO. Operational deployments set `RINDA_DEMO=0` and create accounts under Administration.
+
+## Documentation
+
+| Document | Contents |
+|---|---|
+| `docs/architecture-audit.md` | Architecture map, baseline, defects fixed, technical debt |
+| `docs/product-requirements.md` | Users, workflow, acceptance criteria |
+| `docs/model-validation.md` | Target, data, method, results against baselines, limitations |
+| `docs/api.md` | Generated API reference with roles per endpoint |
+| `docs/security.md` | Controls, threat model, privacy, open risks |
+| `docs/deployment.md` | Configuration, health, deploy, rollback, backup and restore |
+| `docs/user-guide.md`, `docs/admin-guide.md` | Operating instructions |
+| `docs/backlog.md`, `docs/changes-2026-10-12.md`, `docs/readiness-assessment.md` | Plan, change record, readiness |
 
 ## Modules and the research they answer
 

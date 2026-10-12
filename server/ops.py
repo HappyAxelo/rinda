@@ -7,41 +7,13 @@ from __future__ import annotations
 
 import io
 import json
-import sqlite3
-import time
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from engine import VAR
 
-DB = VAR / "operations.db"
-
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS missions (
-  id TEXT PRIMARY KEY, created_utc TEXT, issue_date TEXT, horizon INTEGER,
-  status TEXT, author TEXT, params TEXT, result TEXT);
-CREATE TABLE IF NOT EXISTS flight_logs (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, mission_id TEXT, uploaded_utc TEXT,
-  filename TEXT, provenance TEXT, n_rows INTEGER, payload TEXT);
-CREATE TABLE IF NOT EXISTS telemetry (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, station_id TEXT, ts_utc TEXT,
-  received_utc TEXT, seq INTEGER, payload TEXT);
-CREATE TABLE IF NOT EXISTS audit (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, ts_utc TEXT, actor TEXT, action TEXT, detail TEXT);
-"""
-
-
-def now() -> str:
-    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-
-
-def conn() -> sqlite3.Connection:
-    c = sqlite3.connect(DB)
-    c.row_factory = sqlite3.Row
-    c.executescript(SCHEMA)
-    return c
+from db import conn, now  # noqa: E402  (single schema owner)
 
 
 def audit(actor: str, action: str, detail: str = "") -> None:
@@ -58,7 +30,8 @@ def audit_trail(limit: int = 200) -> list[dict]:
 # ------------------------------------------------------------------ missions
 def save_mission(mid: str, issue_date: str, h: int, author: str, params: dict, result: dict) -> None:
     with conn() as c:
-        c.execute("INSERT OR REPLACE INTO missions VALUES (?,?,?,?,?,?,?,?)",
+        c.execute("INSERT OR REPLACE INTO missions (id, created_utc, issue_date, horizon, status, author, params, result) "
+                  "VALUES (?,?,?,?,?,?,?,?)",
                   (mid, now(), issue_date, h, "PLANNED", author, json.dumps(params), json.dumps(result)))
 
 

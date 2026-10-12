@@ -15,7 +15,7 @@ export async function render(el, st) {
   el.innerHTML = `
   <div class="page-head">
     <div><h1>Flight operations</h1><p>The onboard perceive–decide–actuate loop. Design the timing budget against <span class="mono">L = t<sub>cap</sub>+t<sub>pre</sub>+t<sub>inf</sub>+t<sub>dec</sub>+t<sub>act</sub> ≤ d/v</span>, then load flight logs to replace every design value with a measurement.</p></div>
-    <div class="actions"><a class="btn" href="/api/flightlogs/template">${icon('download')}Log template</a><select id="flProv" class="role" aria-label="Provenance of the uploaded log"><option value="FIELD">Field flight</option><option value="BENCH">Bench / HIL test</option><option value="SYNTHETIC">Synthetic</option></select><label class="btn primary" for="flFile">${icon('upload')}Upload flight log</label><input type="file" id="flFile" accept=".csv" hidden></div>
+    <div class="actions"><a class="btn" href="/api/v1/flightlogs/template">${icon('download')}Log template</a><select id="flProv" class="role" aria-label="Provenance of the uploaded log"><option value="FIELD">Field flight</option><option value="BENCH">Bench / HIL test</option><option value="SYNTHETIC">Synthetic</option></select><label class="btn primary" for="flFile">${icon('upload')}Upload flight log</label><input type="file" id="flFile" accept=".csv" hidden></div>
   </div>
   <div class="tabs" role="tablist"><button role="tab" aria-selected="true" data-tab="design">Loop design</button><button role="tab" aria-selected="false" data-tab="logs">Measured performance</button><button role="tab" aria-selected="false" data-tab="frontier">Model compression frontier</button></div>
   <div id="tab-design">
@@ -80,6 +80,7 @@ export async function render(el, st) {
   document.getElementById('flFile').addEventListener('change', async (e) => {
     const f = e.target.files[0]; if (!f) return;
     const prov = document.getElementById('flProv').value;
+    if (!st.can('upload:flightlog')) { toast('Sign in as an analyst or supervisor to upload flight logs.', true); return; }
     const fd = new FormData(); fd.append('file', f); fd.append('provenance', prov.toUpperCase());
     try { await api.upload('/api/flightlogs', fd); toast(`${f.name} ingested`); el.querySelector('[data-tab="logs"]').click(); }
     catch (er) { toast('Rejected: ' + er.message, true); }
@@ -95,8 +96,8 @@ async function logs(st) {
   const header = card(`Loaded logs · ${list.length}`, table([
     { h: 'File', f: (l) => `<span class="mono">${esc(l.filename)}</span>` }, { h: 'Mission', f: (l) => `<span class="mono">${l.mission_id}</span>` },
     { h: 'Provenance', f: (l) => statusTag(l.provenance) }, { h: 'Events', r: 1, f: (l) => fmt.n(l.n_rows) },
-    { h: 'Uploaded (UTC)', f: (l) => `<span class="mono">${l.uploaded_utc}</span>` }, { h: '', f: (l) => `<button class="btn sm ghost" data-del="${l.id}">${icon('trash')}Remove</button>` },
-  ], list, { max: 220, empty: 'No flight logs yet.' }).html, { flush: true, tools: ms.length ? `<select id="synMid" class="role" style="height:26px">${synthOpts}</select><button class="btn sm" id="synBtn">Generate bench test file</button>` : '' });
+    { h: 'Uploaded (UTC)', f: (l) => `<span class="mono">${l.uploaded_utc}</span>` }, { h: '', f: (l) => (st.can('delete:flightlog') ? `<button class="btn sm ghost" data-del="${l.id}">${icon('trash')}Remove</button>` : '') },
+  ], list, { max: 220, empty: 'No flight logs yet.' }).html, { flush: true, tools: ms.length && st.can('upload:flightlog') ? `<select id="synMid" class="role" style="height:26px">${synthOpts}</select><button class="btn sm" id="synBtn">Generate bench test file</button>` : '' });
 
   if (!an.available) {
     box.innerHTML = header + `<div class="card" style="margin-top:14px"><div class="empty">${icon('flight')}<b>No measurements yet</b><span>Upload a flight log exported by the companion computer (one row per decision) to measure latency, deadline misses, verification accuracy and spray volume.<br>${ms.length ? 'To exercise the analytics before flights, generate a bench test file from a committed mission. It is stamped synthetic everywhere it appears.' : 'Commit a mission in Mission Planning to enable bench test files.'}</span></div></div>` + schema();
@@ -146,12 +147,11 @@ async function logs(st) {
 
 function bindLogs(st) {
   document.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
-    await fetch(`/api/flightlogs/${b.dataset.del}`, { method: 'DELETE' }); toast('Log removed'); logs(st);
+    try { await api.del(`/api/flightlogs/${b.dataset.del}`); toast('Log removed'); logs(st); } catch (e) { toast(e.message, true); }
   }));
   document.getElementById('synBtn')?.addEventListener('click', async () => {
     const mid = document.getElementById('synMid').value;
-    const r = await api.post(`/api/missions/${mid}/synthetic-log`, {});
-    toast(`Bench test file generated: ${r.rows} events, stamped SYNTHETIC`); logs(st);
+    try { const r = await api.post(`/api/missions/${mid}/synthetic-log`, {}); toast(`Bench test file generated: ${r.rows} events, stamped SYNTHETIC`); logs(st); } catch (e) { toast(e.message, true); }
   });
 }
 

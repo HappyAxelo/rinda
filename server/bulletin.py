@@ -8,9 +8,10 @@ from datetime import datetime, timezone
 
 from data import STATION
 
-RISK_COL = {"very_high": "#b3261e", "high": "#e0691a", "moderate": "#e8a33d",
-            "low": "#8fb3c9", "very_low": "#c9d3db"}
-RISK_TXT = {"very_high": "Very high", "high": "High", "moderate": "Moderate", "low": "Low", "very_low": "Very low"}
+CAT_COL = {"high": "#c2410c", "moderate": "#b7791f", "insufficient": "#2a6fb8", "lower": "#b9c3cc"}
+CAT_TXT = {"high": "High priority for verification", "moderate": "Moderate priority for verification",
+           "insufficient": "Insufficient evidence to classify", "lower": "Lower current priority"}
+CAT_SHORT = {"high": "High", "moderate": "Moderate", "insufficient": "Insufficient evidence", "lower": "Lower"}
 
 
 def _svg_map(rows: list[dict], plan: dict, station: dict, w: int = 520, hgt: int = 400) -> str:
@@ -29,12 +30,15 @@ def _svg_map(rows: list[dict], plan: dict, station: dict, w: int = 520, hgt: int
     parts = [f'<svg viewBox="0 0 {w} {hgt}" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" '
              f'aria-label="Map of monitored sites, alerts and planned sorties">',
              f'<rect width="{w}" height="{hgt}" fill="#f6f7f8" rx="4"/>']
-    for r in sorted(rows, key=lambda r: r["probability"]):
+    for r in sorted(rows, key=lambda r: (r["category"] == "high", r["probability"])):
         x, y = xy(r["latitude"], r["longitude"])
-        rc = r["risk_class"]
-        rad = 2.2 if rc in ("very_low", "low") else 4.2
-        parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{rad}" fill="{RISK_COL[rc]}" '
-                     f'fill-opacity="{0.55 if rad < 3 else 0.95}"/>')
+        c = r["category"]
+        if c == "high":
+            parts.append(f'<path d="M{x:.1f} {y-5:.1f} l4.5 8 h-9 z" fill="{CAT_COL[c]}" stroke="#222" stroke-width=".6"/>')
+        elif c in ("insufficient", "moderate"):
+            parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.2" fill="#fff" stroke="{CAT_COL[c]}" stroke-width="1.4" stroke-dasharray="2 1"/>')
+        else:
+            parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="1.8" fill="{CAT_COL[c]}"/>')
     base = plan.get("base") or (station["lat"], station["lon"])
     for s in plan.get("sorties", []):
         pts = [xy(*base)] + [xy(wp["lat"], wp["lon"]) for wp in s["waypoints"]] + [xy(*base)]
@@ -56,9 +60,10 @@ def _svg_map(rows: list[dict], plan: dict, station: dict, w: int = 520, hgt: int
 def render_bulletin(fc: dict, plan: dict, st, h: int, card: dict, area: dict, lang: str = "en") -> str:
     s = fc["summary"]
     rows = fc["rows"]
-    alerts = [r for r in rows if r["alert"] or r["conformal_decision"] == "formation"]
-    unc = [r for r in rows if r["conformal_decision"] == "uncertain"]
-    top = sorted(rows, key=lambda r: -(r["priority_score"] or 0))[:20]
+    meta = fc["meta"]
+    alerts = [r for r in rows if r["category"] == "high"]
+    unc = [r for r in rows if r["category"] == "insufficient"]
+    top = sorted([r for r in rows if r["category"] != "lower"], key=lambda r: (r["category"] != "high", -(r["priority_score"] or 0)))[:20]
     t = plan.get("totals", {})
     m = card["horizons"][h]
     gen = datetime.now(timezone.utc).strftime("%d %b %Y %H:%M UTC")
@@ -66,15 +71,15 @@ def render_bulletin(fc: dict, plan: dict, st, h: int, card: dict, area: dict, la
     target = datetime.strptime(s["target_date"], "%Y-%m-%d").strftime("%d %B %Y")
     ref = f"RINDA-BUL-{s['issue_date'].replace('-', '')}-H{h:02d}"
     risk_rows = "".join(
-        f'<tr><td><span class="sw" style="background:{RISK_COL[k]}"></span>{RISK_TXT[k]}</td>'
-        f'<td class="n">{s["risk"].get(k, 0)}</td></tr>'
-        for k in ("very_high", "high", "moderate", "low", "very_low"))
+        f'<tr><td><span class="sw" style="background:{CAT_COL[k]}"></span>{CAT_TXT[k]}</td>'
+        f'<td class="n">{s["categories"].get(k, 0) if k != "moderate" or s["categories"].get(k) else "not configured"}</td></tr>'
+        for k in ("high", "moderate", "insufficient", "lower"))
     trows = "".join(
         f'<tr><td class="n">{i}</td><td class="mono">{html.escape(r["site_id"])}</td>'
         f'<td class="mono">{r["latitude"]:.5f}, {r["longitude"]:.5f}</td>'
         f'<td class="n">{r["probability"]:.2f}</td>'
-        f'<td><span class="sw" style="background:{RISK_COL[r["risk_class"]]}"></span>{RISK_TXT[r["risk_class"]]}</td>'
-        f'<td>{ {"formation": "Formation", "uncertain": "Verify first", "no_formation": "No formation"}[r["conformal_decision"]] }</td>'
+        f'<td><span class="sw" style="background:{CAT_COL[r["category"]]}"></span>{CAT_SHORT[r["category"]]}</td>'
+        f'<td>{r["uncertainty_band"]}</td>'
         f'<td class="n">{(r["priority_score"] or 0):.3f}</td></tr>'
         for i, r in enumerate(top, 1))
     srows = "".join(
@@ -130,25 +135,28 @@ footer {{ margin-top: 18px; border-top: 1px solid #d5dbe0; padding-top: 6px; fon
 <div class="small">Gikomero Sector, Gasabo District, Kigali City</div></div>
 <div class="meta"><div class="mono">{ref}</div><div>Issued for {issue}</div><div>Valid to {target}</div><div>Generated {gen}</div></div></header>
 
-<div class="band"><b>What this bulletin forecasts.</b> The appearance of new surface water at monitored sites that are dry today,
-detected by Sentinel-1 radar. It does not confirm mosquito larvae. Sites marked <i>Verify first</i> are ones the model
-cannot call with 90% confidence; they are inspected before any treatment.
+{'<div class="band" style="border-left-color:#b3261e;background:#fbecea"><b>HISTORICAL FORECAST.</b> Issued ' + str(meta["age_days"]) + ' days ago. It describes the past and must not be used to plan current work.</div>' if meta["status"] == "stale" else ''}
+<div class="band"><b>What this bulletin forecasts.</b> The appearance of new surface water, seen by Sentinel-1 radar, at 50 m monitoring
+points that are dry today. It does not confirm mosquito larvae, vector presence or malaria risk.
+Points marked <i>Insufficient evidence</i> cannot be classified by the model; only an inspection can.
+<b>Model status: research stage.</b> A simple persistence rule currently scores as well as the model, and outcomes are not yet
+validated in the field. Use this bulletin to prioritise inspections; a forecast never authorises treatment.
 Mode: <b>hindcast replay</b> (no numerical weather forecast connected).</div>
 
 <div class="kpis">
 <div class="kpi"><b>{s['n_sites']}</b><span>sites assessed</span></div>
-<div class="kpi"><b>{len(alerts)}</b><span>formation alerts (treat after onboard confirmation)</span></div>
-<div class="kpi"><b>{len(unc)}</b><span>sites to verify before action</span></div>
+<div class="kpi"><b>{len(alerts)}</b><span>high priority for verification</span></div>
+<div class="kpi"><b>{len(unc)}</b><span>insufficient evidence: inspect to classify</span></div>
 <div class="kpi"><b>{t.get('sorties', 0)}</b><span>sorties planned, {t.get('flight_min', 0):.0f} min total flight</span></div>
 {outcome}
 </div>
 
 <div class="grid2"><div><h2>Forecast map</h2>{_svg_map(rows, plan, STATION)}
-<div class="small">Dots: monitored sites coloured by forecast class. Dashed lines: planned sortie routes from the launch point.</div></div>
-<div><h2>Sites by class</h2><table><tr><th>Class</th><th class="n">Sites</th></tr>{risk_rows}</table>
+<div class="small">Triangles: high priority. Dashed rings: insufficient evidence. Dots: lower priority. Dashed lines: candidate sortie routes (flight requires supervisor approval).</div></div>
+<div><h2>Verification priority</h2><table><tr><th>Class</th><th class="n">Sites</th></tr>{risk_rows}</table>
 <h2>Mission summary</h2><table>
 <tr><td>Targets routed</td><td class="n">{t.get('targets', 0)}</td></tr>
-<tr><td>Treat after confirmation</td><td class="n">{t.get('treat', 0)}</td></tr>
+<tr><td>Verify, treat only if authorised</td><td class="n">{t.get('treat', 0)}</td></tr>
 <tr><td>Verify only</td><td class="n">{t.get('verify_only', 0)}</td></tr>
 <tr><td>Route distance</td><td class="n">{t.get('distance_km', 0):.1f} km</td></tr>
 <tr><td>Spray volume (max.)</td><td class="n">{t.get('spray_l', 0):.1f} L</td></tr>
@@ -156,8 +164,8 @@ Mode: <b>hindcast replay</b> (no numerical weather forecast connected).</div>
 <tr><td>Full-zone coverage instead</td><td class="n">{plan['baseline']['wet_prone_zone']['flight_min']:.0f} min</td></tr>
 </table></div></div>
 
-<h2>Priority targets</h2>
-<table><tr><th class="n">#</th><th>Site</th><th>Position (lat, lon)</th><th class="n">Prob.</th><th>Class</th><th>Call</th><th class="n">Priority</th></tr>{trows}</table>
+<h2>Points to inspect first</h2>
+<table><tr><th class="n">#</th><th>Site</th><th>Position (lat, lon)</th><th class="n">Prob.</th><th>Priority</th><th>Uncertainty</th><th class="n">Priority</th></tr>{trows}</table>
 
 <h2>Sorties</h2>
 <table><tr><th>Sortie</th><th class="n">Targets</th><th class="n">Treat</th><th class="n">Verify</th><th class="n">km</th><th class="n">min</th><th class="n">Spray L</th></tr>{srows}</table>
@@ -170,5 +178,5 @@ Accuracy is not reported because predicting &ldquo;no formation&rdquo; everywher
 Weather inputs come from a single station, so spatial differences come from radar alone.</p>
 
 <div class="sig"><div>Reviewed by (District Vector Control)</div><div>Approved for flight (Programme Manager)</div></div>
-<footer><span>Model fingerprint {m['fingerprint']} &middot; engine {card['engine_version']}</span><span>{ref} &middot; page 1 of 1</span></footer>
+<footer><span>Model {m['fingerprint']} &middot; engine {card['engine_version']} &middot; research stage &middot; valid {meta['valid_window'][0]} to {meta['valid_window'][1]}</span><span>{ref} &middot; page 1 of 1</span></footer>
 </div></body></html>"""

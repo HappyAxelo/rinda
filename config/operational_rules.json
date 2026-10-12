@@ -1,0 +1,51 @@
+{
+  "_doc": "Operational rules. Edit only with the operational partner's written agreement; every change is versioned in git. See docs/model-validation.md section 6.",
+  "version": "2026-10-12.1",
+  "approved_by": "PENDING - to be agreed with RBC Malaria & NTD Division",
+  "verification_priority": {
+    "high": {
+      "label": "High priority for verification",
+      "rule": "conformal_set == {formation}",
+      "meaning": "At the 90% confidence level the model's prediction set contains only 'formation'. On the test window this held for the calls counted in Replay & Validation."
+    },
+    "moderate": {
+      "label": "Moderate priority for verification",
+      "rule": "conformal_set == {no_formation} AND probability >= moderate_min_probability",
+      "moderate_min_probability": null,
+      "meaning": "Disabled until the partner agrees a threshold. With no agreed threshold no site is placed in this category."
+    },
+    "insufficient": {
+      "label": "Insufficient evidence to classify",
+      "rule": "conformal_set == {formation, no_formation}",
+      "meaning": "The model cannot separate the outcomes at 90% confidence. Field verification is the only way to classify these sites."
+    },
+    "lower": {
+      "label": "Lower current priority",
+      "rule": "conformal_set == {no_formation}",
+      "meaning": "At 90% confidence the model expects no new water. This is not evidence that the site is free of larvae."
+    }
+  },
+  "freshness": {
+    "max_forecast_age_days": 7,
+    "max_radar_lag_days": 12,
+    "max_weather_lag_days": 2
+  },
+  "alerts": {
+    "raise_for": ["high"],
+    "expire_after_target_days": 2,
+    "responsible_role": "supervisor",
+    "recommended_action": "Assign a field inspection (dipping) before the target date. Do not treat on the basis of the forecast alone."
+  },
+  "intervention": {
+    "requires_verified_observation": true,
+    "eligible_when": "verified observation with larvae_present == yes, or water_present == yes and larvae_present == not_sampled",
+    "methods": ["bti_ground", "bti_drone", "environmental_management", "other"],
+    "authorising_role": "supervisor",
+    "note": "A forecast never authorises larvicide application. Authorisation follows the national protocol referenced on each record."
+  },
+  "observation_quality": {
+    "max_distance_from_site_m": 200,
+    "max_gps_accuracy_m": 30,
+    "max_future_minutes": 10
+  }
+}

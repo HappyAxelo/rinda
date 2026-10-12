@@ -1,4 +1,4 @@
-import { api, card, kpi, fmt, icon, chart, css, series, riskTag, decisionTag, toast, esc } from '../ui.js';
+import { api, card, kpi, fmt, icon, chart, css, series, catTag, catOf, toast, esc } from '../ui.js';
 import { params } from '../app.js';
 
 export async function render(el, st) {
@@ -26,7 +26,7 @@ export async function render(el, st) {
         </div>`)}
       ${card('Observed inputs', '<div id="scObs"></div>')}
       ${card('Batch scoring', `<p style="margin:0 0 10px;font-size:12.5px;color:var(--ink-2)">Score any table of engineered features with the ${h}-day model. Missing columns are reported and median-imputed exactly as in training.</p>
-        <div class="actions"><a class="btn" href="/api/score/template?h=${h}">${icon('download')}Feature template</a><label class="btn primary" for="scFile">${icon('upload')}Score a CSV</label><input type="file" id="scFile" accept=".csv" hidden></div>`)}
+        <div class="actions"><a class="btn" href="/api/v1/score/template?h=${h}">${icon('download')}Feature template</a>${st.can('score:batch') ? `<label class="btn primary" for="scFile">${icon('upload')}Score a CSV</label><input type="file" id="scFile" accept=".csv" hidden>` : '<span class="hint">Batch scoring needs an analyst account.</span>'}</div>`)}
     </div>
     <div class="grid" style="align-content:start">
       <div class="grid g-3" id="scKpis"></div>
@@ -43,11 +43,11 @@ export async function render(el, st) {
     if (!s.available) { document.getElementById('scKpis').innerHTML = '<div class="note warn span-all">This site has no model row on this issue date.</div>'; return; }
     const d = s.scenario.probability - s.baseline.probability;
     document.getElementById('scKpis').innerHTML = [
-      kpi('Observed state · live engine', s.baseline.probability.toFixed(3), `${riskTag(s.baseline.risk_class)} · ${decisionTag(s.baseline.decision)}`),
-      kpi('Scenario', s.scenario.probability.toFixed(3), `${riskTag(s.scenario.risk_class)} · ${decisionTag(s.scenario.decision)}`, { accent: true }),
+      kpi('Observed state · live engine', s.baseline.probability.toFixed(3), catTag(catOf({ conformal_decision: s.baseline.decision }))),
+      kpi('Scenario', s.scenario.probability.toFixed(3), catTag(catOf({ conformal_decision: s.scenario.decision })), { accent: true }),
       kpi('Change', `<span style="color:${d > 0.0005 ? 'var(--crit)' : d < -0.0005 ? 'var(--good)' : 'var(--ink)'}">${d >= 0 ? '+' : ''}${d.toFixed(3)}</span>`, `${s.perturbed_features} features perturbed`),
     ].join('');
-    document.getElementById('scObs').innerHTML = `<dl class="dl"><dt>Rain, 7 days before issue</dt><dd>${fmt.n(s.observed_rain_7d, 1)} mm</dd><dt>Rain, 14 days before issue</dt><dd>${fmt.n(s.observed_rain_14d, 1)} mm</dd><dt>Scenario rain, 14 days</dt><dd>${fmt.n(s.observed_rain_14d * rain, 1)} mm</dd><dt>Weather source</dt><dd>Gikomero AWS</dd></dl>`;
+    document.getElementById('scObs').innerHTML = `<dl class="dl"><dt>Rain, 7 days before issue</dt><dd>${fmt.n(s.observed_rain_7d, 1)} mm</dd><dt>Rain, 14 days before issue</dt><dd>${fmt.n(s.observed_rain_14d, 1)} mm</dd><dt>Scenario rain, 14 days</dt><dd>${s.observed_rain_14d == null ? 'missing' : `${fmt.n(s.observed_rain_14d * rain, 1)} mm`}</dd><dt>Weather source</dt><dd>Gikomero AWS</dd></dl>${s.missing_inputs?.length ? `<p style="margin:8px 0 0;font-size:12px;color:var(--warn)">${s.missing_inputs.length} inputs missing on this issue (e.g. ${s.missing_inputs.slice(0, 3).join(', ')}); the model imputes them with training medians.</p>` : ''}`;
     chart('scCurve', {
       grid: { left: 52, right: 20, top: 20, bottom: 40 }, tooltip: { trigger: 'axis', valueFormatter: (v) => (+v).toFixed(3) },
       xAxis: { type: 'value', name: 'rainfall multiplier', nameLocation: 'middle', nameGap: 26, min: 0, max: 3 }, yAxis: { type: 'value', name: 'probability', min: 0 },
@@ -74,7 +74,7 @@ export async function render(el, st) {
   ['rM', 'tD'].forEach((i) => document.getElementById(i).addEventListener('input', () => { clearTimeout(t); t = setTimeout(run, 120); }));
   el.querySelectorAll('[data-p]').forEach((b) => b.addEventListener('click', () => { const [r, tt] = b.dataset.p.split(','); document.getElementById('rM').value = r; document.getElementById('tD').value = tt; run(); }));
   document.getElementById('scSite').addEventListener('change', (e) => { site = e.target.value; run(); drivers(); });
-  document.getElementById('scFile').addEventListener('change', async (e) => {
+  document.getElementById('scFile')?.addEventListener('change', async (e) => {
     const f = e.target.files[0]; if (!f) return;
     const fd = new FormData(); fd.append('file', f);
     try {

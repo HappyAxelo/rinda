@@ -9,8 +9,18 @@ services:
     plan: free
     region: frankfurt
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /api/health
+    healthCheckPath: /api/v1/ready
     autoDeploy: true
     envVars:
       - key: PORT
         value: "10000"
+      - key: RINDA_DEMO            # public evaluation: demo sign-in per role, records flagged DEMO
+        value: "1"
+      - key: RINDA_PUBLIC_READ     # forecasts and validation readable without an account
+        value: "1"
+      - key: RINDA_SECURE_COOKIES  # Render terminates HTTPS
+        value: "1"
+      - key: RINDA_ADMIN_EMAIL
+        value: admin@rinda.local
+      - key: RINDA_ADMIN_PASSWORD  # generated once; read it in the Render dashboard
+        generateValue: true

@@ -1,21 +1,56 @@
 // Shared console primitives: data access, formatting, icons, charts, maps.
 
+// Requests made while a page is open share that page's AbortController, so
+// switching page, area or horizon cancels work that would arrive too late.
+let scope = new AbortController();
+export function newScope() { scope.abort(); scope = new AbortController(); return scope.signal; }
+
+async function errorOf(r) {
+  let msg = `${r.status} ${r.statusText}`;
+  try { const j = await r.json(); msg = j.error?.message || j.detail || msg; } catch (e) { /* not JSON */ }
+  const err = new Error(msg); err.status = r.status; return err;
+}
+
+async function request(path, opt = {}, { retries = 0, timeout = 20000 } = {}) {
+  const url = path.startsWith('/api/') && !path.startsWith('/api/v1/') && !path.startsWith('/api/docs') ? '/api/v1/' + path.slice(5) : path;
+  for (let attempt = 0; ; attempt++) {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort('timeout'), timeout);
+    const onAbort = () => ctl.abort('navigation');
+    const sig = scope.signal;
+    sig.addEventListener('abort', onAbort, { once: true });
+    try {
+      const r = await fetch(url, { credentials: 'same-origin', ...opt, signal: ctl.signal });
+      if (r.ok) return r;
+      if (r.status >= 500 && attempt < retries) { await new Promise((z) => setTimeout(z, 600 * 2 ** attempt)); continue; }
+      throw await errorOf(r);
+    } catch (e) {
+      if (ctl.signal.reason === 'navigation') { const a = new Error('cancelled'); a.cancelled = true; throw a; }
+      if (ctl.signal.reason === 'timeout') {
+        if (attempt < retries) continue;
+        const a = new Error('The server took too long to answer. Check the connection and try again.'); a.timeout = true; throw a;
+      }
+      if (e instanceof TypeError && attempt < retries) { await new Promise((z) => setTimeout(z, 600 * 2 ** attempt)); continue; }
+      if (e instanceof TypeError) { const a = new Error('Network unavailable. Nothing was sent.'); a.offline = true; throw a; }
+      throw e;
+    } finally { clearTimeout(t); sig.removeEventListener('abort', onAbort); }
+  }
+}
+
+const inflight = new Map();
+const W = { 'X-RINDA': '1' };
 export const api = {
   async get(path) {
-    const r = await fetch(path);
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-    return r.json();
+    // identical concurrent GETs share one request
+    if (inflight.has(path)) return inflight.get(path);
+    const p = request(path, {}, { retries: 2 }).then((r) => r.json()).finally(() => inflight.delete(path));
+    inflight.set(path, p);
+    return p;
   },
-  async post(path, body) {
-    const r = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body ?? {}) });
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-    return r.json();
-  },
-  async upload(path, form) {
-    const r = await fetch(path, { method: 'POST', body: form });
-    if (!r.ok) { let m = await r.text(); try { m = JSON.parse(m).detail; } catch (e) {} throw new Error(m); }
-    return r;
-  },
+  async post(path, body) { return (await request(path, { method: 'POST', headers: { ...W, 'content-type': 'application/json' }, body: JSON.stringify(body ?? {}) })).json(); },
+  async patch(path, body) { return (await request(path, { method: 'PATCH', headers: { ...W, 'content-type': 'application/json' }, body: JSON.stringify(body ?? {}) })).json(); },
+  async del(path) { return (await request(path, { method: 'DELETE', headers: W })).json(); },
+  async upload(path, form) { return request(path, { method: 'POST', headers: W, body: form }, { timeout: 120000 }); },
 };
 
 // ------------------------------------------------------------------ format
@@ -60,6 +95,13 @@ const P = {
   arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   file: '<path d="M6 3.5h8l4 4v13H6z"/><path d="M14 3.5v4h4"/>',
   trash: '<path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/>',
+  user: '<circle cx="12" cy="8" r="3.8"/><path d="M4.5 20c.8-4 3.8-6 7.5-6s6.7 2 7.5 6"/>',
+  bell: '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+  clipboard: '<rect x="5.5" y="4.5" width="13" height="16" rx="1.5"/><path d="M9 4.5V3h6v1.5M9 10h6M9 13.5h6M9 17h4"/>',
+  replay: '<path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/><path d="M12 8v4l2.5 1.5"/>',
+  help: '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.5a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2-2.4 3.5M12 17v.01"/>',
+  shield: '<path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.2-7.5 9.5-4.3-1.3-7.5-4.9-7.5-9.5V6z"/>',
+  search: '<circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/>',
   pin: '<path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/>',
 };
 export const icon = (name, cls = '') => `<svg viewBox="0 0 24 24" class="${cls}" aria-hidden="true">${P[name] || ''}</svg>`;
@@ -67,6 +109,9 @@ export const icon = (name, cls = '') => `<svg viewBox="0 0 24 24" class="${cls}"
 // --------------------------------------------------------------- semantics
 export const RISK = ['very_high', 'high', 'moderate', 'low', 'very_low'];
 export const RISK_LABEL = { very_high: 'Very high', high: 'High', moderate: 'Moderate', low: 'Low', very_low: 'Very low' };
+export const CAT = ['high', 'moderate', 'insufficient', 'lower'];
+export const CAT_LABEL = { high: 'High priority for verification', moderate: 'Moderate priority for verification', insufficient: 'Insufficient evidence to classify', lower: 'Lower current priority' };
+export const CAT_SHORT = { high: 'High', moderate: 'Moderate', insufficient: 'Insufficient evidence', lower: 'Lower' };
 export const DECISION_LABEL = { formation: 'Formation', uncertain: 'Verify first', no_formation: 'No formation' };
 export const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 export const riskColor = (k) => css(`--risk-${k}`);
@@ -75,6 +120,10 @@ export function decisionTag(d) {
   if (d === 'formation') return `<span class="status st-crit">${icon('alert')}Formation</span>`;
   if (d === 'uncertain') return `<span class="status st-warn">${icon('info')}Verify first</span>`;
   return `<span class="status st-mute">No formation</span>`;
+}
+export function catTag(k, short = true) {
+  const m = { high: ['st-crit', 'alert'], moderate: ['st-warn', 'info'], insufficient: ['st-info', 'info'], lower: ['st-mute', 'check'] }[k] || ['st-mute', 'info'];
+  return `<span class="status ${m[0]}" title="${CAT_LABEL[k] || k}">${icon(m[1])}${short ? CAT_SHORT[k] : CAT_LABEL[k]}</span>`;
 }
 export function riskTag(k) {
   return `<span class="num"><span class="dot" style="background:var(--risk-${k})"></span>${RISK_LABEL[k] || k}</span>`;
@@ -210,18 +259,51 @@ export function legendControl(map, html, pos = 'bottomright') {
   c.addTo(map);
   return c;
 }
-export const riskLegend = () => `<b>Formation class</b>${RISK.map((k) => `<div class="row"><span class="dot" style="background:var(--risk-${k})"></span>${RISK_LABEL[k]}</div>`).join('')}
-  <div class="row" style="margin-top:4px"><span class="dot" style="background:none;border:2px solid var(--warn)"></span>Verify first</div>`;
+export const riskLegend = () => `<b>Verification priority</b>
+  <div class="row"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1.5l5.5 10h-11z" fill="var(--cat-high)" stroke="#0b1015"/></svg>High</div>
+  <div class="row"><span class="dot" style="background:var(--s1);border:2px dashed var(--cat-insufficient)"></span>Insufficient evidence</div>
+  <div class="row"><span class="dot" style="background:var(--cat-lower);width:6px;height:6px"></span>Lower</div>
+  <div class="row" style="margin-top:4px;color:var(--ink-3)">Points are 50 m monitoring circles</div>`;
+
+const TRI = (fill) => L.divIcon({ className: 'tri-pin', iconSize: [16, 16], iconAnchor: [8, 10],
+  html: `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5l6.5 12h-13z" fill="${fill}" stroke="#0b1015" stroke-width="1.2"/></svg>` });
+
+export const catOf = (r) => r.category || (r.conformal_decision === 'formation' ? 'high' : r.conformal_decision === 'uncertain' ? 'insufficient' : 'lower');
 
 export function siteMarker(r, { onClick } = {}) {
-  const k = r.risk_class;
-  const big = k !== 'very_low' && k !== 'low';
-  const unc = r.conformal_decision === 'uncertain';
-  const mk = L.circleMarker([r.latitude, r.longitude], {
-    radius: big ? 7 : unc ? 5.5 : 3.6, color: unc ? css('--warn') : css('--s1'), weight: unc ? 2 : 1,
-    fillColor: riskColor(k), fillOpacity: big ? .95 : .75,
-  });
-  mk.bindTooltip(`<b class="mono">${r.site_id}</b><br>p = ${r.probability.toFixed(3)} · ${RISK_LABEL[k]}<br>${DECISION_LABEL[r.conformal_decision]}`, { direction: 'top', offset: [0, -6] });
+  const cat = catOf(r);
+  const tip = `<b class="mono">${r.site_id}</b> · ${CAT_LABEL[cat]}<br>p = ${r.probability.toFixed(3)} (calibrated) · 50 m monitoring circle`;
+  let mk;
+  if (cat === 'high') mk = L.marker([r.latitude, r.longitude], { icon: TRI(css('--cat-high')), keyboard: true, title: `${r.site_id}: high priority for verification` });
+  else if (cat === 'insufficient' || cat === 'moderate') mk = L.circleMarker([r.latitude, r.longitude], { radius: 5.5, color: css(cat === 'moderate' ? '--warn' : '--cat-insufficient'), weight: 2, dashArray: '3 2', fillColor: css('--s1'), fillOpacity: 0.9 });
+  else mk = L.circleMarker([r.latitude, r.longitude], { radius: 3.2, color: 'transparent', weight: 0, fillColor: css('--cat-lower'), fillOpacity: 0.8 });
+  mk.bindTooltip(tip, { direction: 'top', offset: [0, -6] });
   if (onClick) mk.on('click', () => onClick(r));
   return mk;
 }
+
+// 50 m monitoring circles appear once the map is zoomed in far enough to read them
+export function footprintLayer(map, rows) {
+  const g = L.layerGroup(rows.map((r) => L.circle([r.latitude, r.longitude], { radius: 50, color: css('--ink-3'), weight: 1, fill: false, interactive: false })));
+  const sync = () => { if (map.getZoom() >= 15) g.addTo(map); else g.remove(); };
+  map.on('zoomend', sync); sync();
+  return g;
+}
+
+export function banner(level, html) {
+  const cls = { critical: 'crit', warn: 'warn', info: '', good: 'good' }[level] ?? '';
+  return `<div class="note ${cls}" role="${level === 'critical' ? 'alert' : 'status'}">${html}</div>`;
+}
+
+export function modal(title, html, { wide = false } = {}) {
+  const d = document.createElement('dialog');
+  d.className = 'modal' + (wide ? ' wide' : '');
+  d.setAttribute('aria-label', title.replace(/<[^>]+>/g, ''));
+  d.innerHTML = `<form method="dialog" class="modal-h"><h2>${title}</h2><button class="icon-btn" aria-label="Close">${icon('x')}</button></form><div class="modal-b">${html}</div>`;
+  document.body.append(d);
+  d.addEventListener('close', () => d.remove());
+  d.showModal();
+  return d;
+}
+
+export const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2));

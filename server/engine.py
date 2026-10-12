@@ -39,7 +39,7 @@ CFG = load_config(HF / "configs" / "paper_run.yaml")
 RUN_SUMMARY = json.loads((HF / "reports" / "run_summary.json").read_text())
 HORIZONS = (7, 14)
 RISK_BREAKS = {k: tuple(v) for k, v in CFG["mapping"]["risk_classes"].items()}
-ENGINE_VERSION = "2.3.0"
+ENGINE_VERSION = "2.4.0"
 
 # Feature families as programme staff read them, not as the code names them.
 FAMILY_RULES = [
@@ -54,6 +54,11 @@ FAMILY_RULES = [
 # and radar response terms are physical observations and stay fixed.
 RAIN_AMOUNT_PREFIXES = ("RAIN_1D", "RAIN_3D", "RAIN_5D", "RAIN_7D", "RAIN_14D",
                         "RAIN_LAG_", "CUM_RAIN_", "MAX_DAILY_RAIN_", "RAIN_INTENSITY_")
+
+
+def _num(v) -> float | None:
+    """JSON-safe number: missing inputs travel as null, never as NaN."""
+    return None if v is None or pd.isna(v) or not np.isfinite(v) else float(v)
 
 
 def family_of(col: str) -> str:
@@ -230,12 +235,13 @@ class Engine:
         return {
             "available": True, "site_id": site_id, "date": date, "horizon": h,
             "probability": p, "raw_score": p_raw, "baseline_logit": bias,
+            "missing_inputs": [c for c in m.fcols if pd.isna(r[c].iloc[0])],
             "risk_class": str(classify_risk(np.array([p]))[0]),
             "decision": str(conf["decision"]), "threshold": m.threshold,
             "label_observed": int(r.y.iloc[0]),
             "families": [{"family": k, "contribution": float(v)} for k, v in fam.items()],
             "drivers": [{"feature": f.feature, "family": f.family,
-                         "value": None if pd.isna(f.value) else float(f.value),
+                         "value": _num(f.value),
                          "contribution": float(f.contribution)} for f in topf.itertuples()],
         }
 
@@ -274,8 +280,9 @@ class Engine:
                          "rain_multiplier": rain_mult, "temp_delta_c": temp_delta},
             "curve": [{"rain_multiplier": float(k), "probability": float(v)}
                       for k, v in zip(grid, p[:len(grid)])],
-            "observed_rain_7d": float(r["RAIN_7D"].iloc[0]) if "RAIN_7D" in r else None,
-            "observed_rain_14d": float(r["RAIN_14D"].iloc[0]) if "RAIN_14D" in r else None,
+            "observed_rain_7d": _num(r["RAIN_7D"].iloc[0]) if "RAIN_7D" in r else None,
+            "observed_rain_14d": _num(r["RAIN_14D"].iloc[0]) if "RAIN_14D" in r else None,
+            "missing_inputs": [c for c in m.fcols if pd.isna(r[c].iloc[0])],
             "perturbed_features": len(rain_cols) + len(temp_cols),
         }
 
