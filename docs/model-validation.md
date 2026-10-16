@@ -3,6 +3,11 @@
 Status: **research stage, not validated for intervention decisions.** This document states what the model predicts,
 how it was tested, what the results are, and why it must not yet guide treatment.
 
+> **Update 2026-10-16.** The console now serves the v3 model, not the v1 model described below. v3 beats the
+> persistence baseline (PR-AUC 0.786 vs 0.570 at 7 days, 0.663 vs 0.446 at 14 days, rolling out-of-sample,
+> Sep 2025 – Sep 2026). See `docs/changes-2026-10-16.md`. Sections 1–8 document v1 and are kept as the archived
+> Paper 1 record.
+
 ## 1. Prediction target
 
 Target A, *new surface-water formation*: a monitoring point is dry on the issue date *t* and for the 3 preceding days,

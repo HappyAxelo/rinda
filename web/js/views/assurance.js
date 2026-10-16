@@ -13,10 +13,13 @@ export async function render(el, st) {
   const model = refs.find((r) => r.reference === 'model');
   const beaten = best.pr_auc > model.pr_auc;
 
-  el.innerHTML = `
-  <div class="page-head">
-    <div><h1>Model assurance · ${h}-day</h1><p>Every figure below comes from one untouched temporal test window (${eng.test_window[0]} to ${eng.test_window[1]}) the model never saw during fitting, calibration or threshold choice. Accuracy is deliberately absent: predicting "no formation" everywhere scores ${fmt.pct(sc.majority_accuracy)}.</p></div>
-    <div class="actions"><a class="btn" href="/api/v1/assurance" target="_blank">${icon('file')}Raw assurance record</a></div>
+  const v3 = a.v3 ? v3Section(a.v3, h) : '';
+  const v1win = ho.test_window || [eng.test_window[0], eng.test_window[1]];
+
+  el.innerHTML = `${v3}
+  <div class="page-head" ${a.v3 ? 'style="margin-top:28px"' : ''}>
+    <div><h1>${a.v3 ? `Study run v1 (archived Paper 1 analysis) · ${h}-day` : `Model assurance · ${h}-day`}</h1><p>${a.v3 ? 'The first published model, kept as the reference the newer versions are measured against. ' : ''}Every figure below comes from one untouched temporal test window the model never saw during fitting, calibration or threshold choice. Accuracy is deliberately absent: predicting "no formation" everywhere scores ${fmt.pct(sc.majority_accuracy)}.</p></div>
+    ${a.v3 ? '' : `<div class="actions"><a class="btn" href="/api/v1/assurance" target="_blank">${icon('file')}Raw assurance record</a></div>`}
   </div>
   <div class="grid g-4">
     ${kpi('PR-AUC', sc.pr_auc.toFixed(3), `95% block-bootstrap CI ${ho.pr_auc_ci.lo.toFixed(3)} – ${ho.pr_auc_ci.hi.toFixed(3)} · base rate ${sc.base_rate.toFixed(3)}`, { accent: true })}
@@ -47,13 +50,14 @@ export async function render(el, st) {
       <div class="kv-row"><span>Features</span><span>${eng.n_features}</span></div>
       <div class="kv-row"><span>Train / calibrate / test</span><span class="mono">${eng.train_window[0].slice(0, 7)} → ${eng.train_window[1].slice(0, 7)} / → ${eng.val_window[1].slice(0, 7)} / ${eng.test_window[0].slice(0, 7)} →</span></div>
       <div class="kv-row"><span>Training rows (formations)</span><span>${fmt.n(eng.n_train)} (${fmt.n(eng.n_pos_train)})</span></div>
-      <div class="kv-row"><span>Published PR-AUC / live engine</span><span>${eng.reproduction.published_pr_auc.toFixed(4)} / ${eng.reproduction.engine_pr_auc.toFixed(4)}</span></div>
+      ${eng.reproduction.published_pr_auc != null ? `<div class="kv-row"><span>Published PR-AUC / live engine</span><span>${eng.reproduction.published_pr_auc.toFixed(4)} / ${eng.reproduction.engine_pr_auc.toFixed(4)}</span></div>` : `<div class="kv-row"><span>Refit cadence</span><span>every ${eng.refit_every_days} days</span></div>`}
       <div class="kv-row"><span>Fingerprint</span><span class="mono">${eng.fingerprint}</span></div>
-      <p style="font-size:12px;color:var(--ink-3);margin:10px 0 0">The console refits the published configuration from the study table. Small differences come from multithreaded tree construction and stay well inside the bootstrap interval (±${(ho.pr_auc_ci.sd).toFixed(3)} SD).</p>`)}
+      <p style="font-size:12px;color:var(--ink-3);margin:10px 0 0">${a.v3 ? 'Served model (v3). ' : ''}The console refits the published configuration from the study table. Small differences come from multithreaded tree construction and stay well inside the bootstrap interval (±${(ho.pr_auc_ci.sd).toFixed(3)} SD).</p>`)}
     ${card('Leakage guard', `${Object.entries(H.leakage || {}).filter(([k]) => typeof H.leakage[k] === 'boolean').map(([k, v]) => `<div class="kv-row"><span>${k.replaceAll('_', ' ')}</span><span>${v ? `<span class="status st-good">${icon('check')}passed</span>` : `<span class="status st-crit">failed</span>`}</span></div>`).join('')}
       <p style="font-size:12px;color:var(--ink-3);margin:10px 0 0">${H.label.notes.join(' ')}</p>`, { sub: `table ${H.fingerprint}` })}
   </div>`;
 
+  if (a.v3) v3Charts(a.v3, h);
   chart('asRef', {
     grid: { left: 210, right: 40, top: 6, bottom: 24 }, tooltip: { trigger: 'item', valueFormatter: (v) => v.toFixed(3) },
     xAxis: { type: 'value', max: 1 }, yAxis: { type: 'category', data: refs.map((r) => REF_LABEL[r.reference]).reverse() },
@@ -93,5 +97,43 @@ export async function render(el, st) {
     grid: { left: 48, right: 16, top: 16, bottom: 36 }, tooltip: { trigger: 'axis', valueFormatter: (v) => (+v).toFixed(3) },
     xAxis: { type: 'category', data: Object.keys(lag).map((d) => `${d} d`), name: 'look-back', nameLocation: 'middle', nameGap: 24 }, yAxis: { type: 'value', name: 'Σ mean |SHAP|' },
     series: [{ type: 'bar', barWidth: 22, data: Object.values(lag), itemStyle: { color: series(3), borderRadius: [4, 4, 0, 0] } }],
+  });
+}
+
+const CAND = { R0_static_v2: 'Static fit (v2 design)', R1_refit28_v2: 'Refit every 28 d', R2_refit14_v2: 'Refit every 14 d', R3_refit28_v2_3seeds: 'Refit 28 d, 3 seeds', R4_refit28_altfeatures: 'Refit 28 d, other inputs' };
+
+function v3Section(v, h) {
+  const E = v.evaluation[h], f = E.full, hz = v.horizons[h], s = v.selection[h];
+  const pt = f.precision_threshold, ft = f.f1_threshold, v2 = f.v2_same_rows;
+  const cands = Object.entries(s.candidates).map(([k, c]) => ({ k, ...c }));
+  return `
+  <div class="page-head">
+    <div><h1>Model assurance · served model v3 · ${h}-day</h1><p>Rolling out-of-sample forecasts ${fmt.date(f.date_from)} to ${fmt.date(f.date_to)}: the model was refitted every ${hz.refit_every_days} days on outcomes observable at the time, and its calibration and alert line came from earlier forecasts only. The Feb–Sep 2026 window was blind for v2 but not for v3.</p></div>
+    <div class="actions"><a class="btn" href="/api/v1/assurance" target="_blank">${icon('file')}Raw assurance record</a></div>
+  </div>
+  <div class="grid g-4">
+    ${kpi('PR-AUC', f.pr_auc.toFixed(3), `95% block-bootstrap CI ${f.ci.lo.toFixed(3)} – ${f.ci.hi.toFixed(3)} · base rate ${f.base_rate.toFixed(3)}`, { accent: true })}
+    ${kpi('Alert precision / recall', `${pt.precision.toFixed(2)} <small>/</small> ${pt.recall.toFixed(2)}`, `High-precision alert line (target 0.75) · ${fmt.n(pt.alerts)} alerts`)}
+    ${kpi('Best-F1 line', `${ft.precision.toFixed(2)} <small>/</small> ${ft.recall.toFixed(2)}`, `precision / recall · frozen v2 on same rows ${v2.v2_op.precision.toFixed(2)} / ${v2.v2_op.recall.toFixed(2)}`)}
+    ${kpi('Against persistence', `+${(f.pr_auc - f.B1_pr_auc).toFixed(3)}`, `PR-AUC over the 30-day water-frequency rule (${f.B1_pr_auc.toFixed(3)}) · over v2 ${(v2.v3_minus_v2.delta >= 0 ? '+' : '') + v2.v3_minus_v2.delta.toFixed(3)} (CI ${v2.v3_minus_v2.lo.toFixed(3)} to ${v2.v3_minus_v2.hi.toFixed(3)})`)}
+  </div>
+  <div class="grid g-2" style="margin-top:14px">
+    ${card('v3 against v2 and persistence', '<div class="chart" id="v3Cmp"></div>', { sub: 'PR-AUC on identical rows, by window' })}
+    ${card('How v3 was chosen', table([
+      { h: 'Candidate', f: (r) => CAND[r.k] || r.k }, { h: 'Inputs', r: 1, f: (r) => r.n_features },
+      { h: 'Validation PR-AUC', r: 1, f: (r) => `${r.val_pr_auc.toFixed(3)}${r.k === s.chosen ? ' ✓' : ''}` },
+    ], cands).html + `<div class="card-b" style="font-size:12px;color:var(--ink-3)">Rolling forecasts on Jan–Aug 2025 only (persistence ${cands[0].val_B1.toFixed(3)}). Rule fixed before scoring: highest validation PR-AUC.</div>`, { flush: true, sub: 'Selection used the validation window only' })}
+  </div>`;
+}
+
+function v3Charts(v, h) {
+  const E = v.evaluation[h];
+  const wins = [['full', 'Sep 2025 – Sep 2026'], ['test', 'Sep 2025 – Jan 2026'], ['forward', 'Feb – Sep 2026']];
+  const ser = (name, f, color) => ({ name, type: 'bar', barWidth: 10, data: wins.map(([k]) => f(E[k])), itemStyle: { color, borderRadius: [0, 4, 4, 0] } });
+  chart('v3Cmp', {
+    grid: { left: 140, right: 30, top: 30, bottom: 24 }, legend: { data: ['v3 (served)', 'v2 frozen', 'Persistence (B1)'] },
+    tooltip: { trigger: 'axis', valueFormatter: (x) => (+x).toFixed(3) }, xAxis: { type: 'value', max: 1 },
+    yAxis: { type: 'category', data: wins.map(([, l]) => l), inverse: true },
+    series: [ser('v3 (served)', (w) => w.v2_same_rows.v3_pr_auc, css('--brand')), ser('v2 frozen', (w) => w.v2_same_rows.v2_pr_auc, series(2)), ser('Persistence (B1)', (w) => w.B1_pr_auc, css('--ink-3'))],
   });
 }

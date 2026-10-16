@@ -39,26 +39,50 @@ CFG = load_config(HF / "configs" / "paper_run.yaml")
 RUN_SUMMARY = json.loads((HF / "reports" / "run_summary.json").read_text())
 HORIZONS = (7, 14)
 RISK_BREAKS = {k: tuple(v) for k, v in CFG["mapping"]["risk_classes"].items()}
-ENGINE_VERSION = "2.4.0"
+ENGINE_VERSION = "3.0.0"
+
+# v3 bundle (scripts/v3_export_rinda.py in habitat-forecast). When present it is
+# served; the v1 study run stays available as the archived Paper 1 assurance record.
+V3 = HF / "v3"
+V3_CARD = json.loads((V3 / "model_card.json").read_text()) if (V3 / "model_card.json").exists() else None
 
 # Feature families as programme staff read them, not as the code names them.
+# Order matters: the first matching rule wins.
 FAMILY_RULES = [
-    ("Radar surface state", ("VV_", "VH_", "WATER_", "SITE_RAIN_RESP", "RAIN_RESPONSE")),
-    ("Rainfall", ("RAIN", "CUM_RAIN", "MAX_DAILY_RAIN", "DRY_DAYS", "DAYS_SINCE_RAIN")),
+    ("Rainfall forecast", ("NWP_", "X_FCRAIN")),
+    ("Rainfall and soil moisture", ("CH_", "E5_", "ST_", "X_RAIN", "X_CHRAIN", "X_SM", "RAIN", "CUM_RAIN",
+                                    "MAX_DAILY_RAIN", "DRY_DAYS", "DAYS_SINCE_RAIN")),
+    ("Site water history, same orbit", ("TO_", "CO_")),
+    ("Orbit geometry", ("ORBIT", "EXPECTED_", "PAIR", "GEOM", "REL_ORBIT", "SAME_ORBIT")),
+    ("Site water history", ("WFREQ", "N_PASSES", "DAYS_SINCE_WATER", "MARGIN", "SWITCH_RATE", "PAST_FORM",
+                            "NB_", "WATER_")),
+    ("Terrain and land cover", ("twi", "hand", "slope", "elev", "dem", "gsw_", "wc_", "tpi", "flow", "dist_")),
+    ("Optical (Sentinel-2)", ("S2_",)),
+    ("Radar surface state", ("VV_", "VH_", "SITE_RAIN_RESP", "RAIN_RESPONSE")),
     ("Temperature", ("TEMP_", "DEGREE_DAYS")),
     ("Humidity", ("HUMIDITY",)),
     ("Acquisition quality", ("N_LOOKS", "N_VALID_PX", "DAYS_SINCE_PREV_PASS", "METEO_OBSERVED")),
+    ("Season", ("DOY", "MONTH", "SEASON")),
 ]
 
 # Features a rainfall scenario may rescale: amounts only. Counts, dry-day runs
 # and radar response terms are physical observations and stay fixed.
 RAIN_AMOUNT_PREFIXES = ("RAIN_1D", "RAIN_3D", "RAIN_5D", "RAIN_7D", "RAIN_14D",
-                        "RAIN_LAG_", "CUM_RAIN_", "MAX_DAILY_RAIN_", "RAIN_INTENSITY_")
+                        "RAIN_LAG_", "CUM_RAIN_", "MAX_DAILY_RAIN_", "RAIN_INTENSITY_",
+                        "CH_RAIN_", "CH_MAXDAY_", "E5_RAIN_", "E5_MAXRAIN_", "NWP_ECMWF_RAIN_", "NWP_GFS_RAIN_",
+                        "NWP_ECMWF_MAXDAY_", "NWP_GFS_MAXDAY_")
 
 
 def _num(v) -> float | None:
     """JSON-safe number: missing inputs travel as null, never as NaN."""
     return None if v is None or pd.isna(v) or not np.isfinite(v) else float(v)
+
+
+def _first(r: pd.DataFrame, cols) -> float | None:
+    for c in cols:
+        if c in r:
+            return _num(r[c].iloc[0])
+    return None
 
 
 def family_of(col: str) -> str:
@@ -118,6 +142,51 @@ class HorizonModel:
         return booster.predict(xgb.DMatrix(imp), pred_contribs=True)
 
 
+class V3HorizonModel:
+    """Adapter giving the v3 operational model the interface the console uses."""
+
+    def __init__(self, h: int, om, card: dict) -> None:
+        self.horizon, self.om = h, om
+        self.fcols = list(om.cols)
+        hc = card["horizons"][str(h)]
+        ev = card["evaluation"][str(h)]["full"]
+        self.threshold = float(om.recal.thr_precision)      # alert line: precision >= 0.75 on recent forecasts
+        self.threshold_f1 = float(om.recal.thr_f1)
+        self.fingerprint = hc["sha256"][:16]
+        self.trained_utc = card["manifest"]["built_utc"]
+        self.train_window = ("2023-03-01", om.trained_to)
+        self.val_window = tuple(om.recal.window)
+        self.test_window = (ev["date_from"], ev["date_to"])
+        self.n_train = int(card["manifest"]["models"][f"h{h}"]["rows"])
+        self.n_pos_train = int(card["manifest"]["models"][f"h{h}"]["events"])
+        self.refit_every_days = om.refit_every_days
+        self.test_scores = {"pr_auc": ev["pr_auc"], "base_rate": ev["base_rate"],
+                            "precision": ev["precision_threshold"]["precision"],
+                            "recall": ev["precision_threshold"]["recall"],
+                            "precision_at_f1": ev["f1_threshold"]["precision"],
+                            "recall_at_f1": ev["f1_threshold"]["recall"], "brier": ev["brier"],
+                            "B1_pr_auc": ev["B1_pr_auc"], "v2_pr_auc": ev["v2_same_rows"]["v2_pr_auc"]}
+        self.reproduction = {"note": "v3 is served from the frozen bundle; scores are rolling out-of-sample "
+                                     "forecasts with recalibration from earlier forecasts only."}
+
+    def raw(self, X: pd.DataFrame) -> np.ndarray:
+        return self.om.ensemble.raw(X)
+
+    def prob(self, X: pd.DataFrame) -> np.ndarray:
+        return self.om.prob(X)
+
+    def conformal(self, p: np.ndarray, alpha: float = 0.1) -> pd.DataFrame:
+        # Served tiers (see habitat-forecast scripts/v3_export_rinda.py): 'formation' is the
+        # high-precision alert line; below it, a site the 90% set cannot rule out is 'uncertain'.
+        p = np.asarray(p, float)
+        d = self.om.recal.conformal(p, alpha)
+        tier = np.where(p >= self.threshold, "formation", np.where(d == "no_formation", "no_formation", "uncertain"))
+        return pd.DataFrame({"decision": tier})
+
+    def contributions(self, X: pd.DataFrame) -> np.ndarray:
+        return self.om.ensemble.contributions(X)
+
+
 class Engine:
     def __init__(self) -> None:
         self.models: dict[int, HorizonModel] = {}
@@ -125,6 +194,7 @@ class Engine:
         self.status = "initialising"
         self.log: list[str] = []
         self._lock = threading.Lock()
+        self.version = "v3" if V3_CARD else "v1"
 
     def _say(self, msg: str) -> None:
         self.log.append(f"{time.strftime('%H:%M:%S')}  {msg}")
@@ -132,6 +202,21 @@ class Engine:
 
     # ------------------------------------------------------------------ load
     def load(self) -> None:
+        if V3_CARD:
+            with self._lock:
+                for h in HORIZONS:
+                    om = joblib.load(V3 / f"operational_h{h}.joblib")
+                    self.models[h] = V3HorizonModel(h, om, V3_CARD)
+                    tbl = pd.read_parquet(V3 / f"window_h{h}.parquet")
+                    tbl["date"] = pd.to_datetime(tbl["date"])
+                    self.tables[h] = tbl
+                    self._say(f"h{h}: v3 model {self.models[h].fingerprint} trained to {om.trained_to}, "
+                              f"{len(om.cols)} features")
+                self.status = "ready"
+            return
+        self._load_v1()
+
+    def _load_v1(self) -> None:
         """Fit (once) on the full table, but keep only the operational window in
         memory: explanations and scenarios only ever touch forecast issue dates."""
         test_start = pd.Timestamp(CFG["validation"]["temporal"]["test_start"])
@@ -280,8 +365,8 @@ class Engine:
                          "rain_multiplier": rain_mult, "temp_delta_c": temp_delta},
             "curve": [{"rain_multiplier": float(k), "probability": float(v)}
                       for k, v in zip(grid, p[:len(grid)])],
-            "observed_rain_7d": _num(r["RAIN_7D"].iloc[0]) if "RAIN_7D" in r else None,
-            "observed_rain_14d": _num(r["RAIN_14D"].iloc[0]) if "RAIN_14D" in r else None,
+            "observed_rain_7d": _first(r, ("RAIN_7D", "CH_RAIN_7D", "E5_RAIN_7D")),
+            "observed_rain_14d": _first(r, ("RAIN_14D", "CH_RAIN_14D", "E5_RAIN_14D")),
             "missing_inputs": [c for c in m.fcols if pd.isna(r[c].iloc[0])],
             "perturbed_features": len(rain_cols) + len(temp_cols),
         }
@@ -302,8 +387,21 @@ class Engine:
         return out
 
     def card(self) -> dict:
-        out = {"engine_version": ENGINE_VERSION, "status": self.status, "horizons": {}}
+        out = {"engine_version": ENGINE_VERSION, "status": self.status, "model_version": self.version,
+               "horizons": {}}
         for h, m in self.models.items():
+            if isinstance(m, V3HorizonModel):
+                out["horizons"][h] = {
+                    "algorithm": "XGBoost + LightGBM ensemble, refit every "
+                                 f"{m.refit_every_days} days, isotonic recalibration on earlier forecasts",
+                    "n_features": len(m.fcols), "threshold": m.threshold, "threshold_f1": m.threshold_f1,
+                    "trained_utc": m.trained_utc, "fingerprint": m.fingerprint,
+                    "train_window": m.train_window, "val_window": m.val_window,
+                    "test_window": m.test_window, "n_train": m.n_train, "n_pos_train": m.n_pos_train,
+                    "test_scores": m.test_scores, "reproduction": m.reproduction,
+                    "refit_every_days": m.refit_every_days, "conformal_alpha": 0.1,
+                }
+                continue
             out["horizons"][h] = {
                 "algorithm": "Gradient-boosted trees (XGBoost, hist), isotonic calibration",
                 "n_features": len(m.fcols), "threshold": m.threshold,

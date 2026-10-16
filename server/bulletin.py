@@ -7,6 +7,29 @@ import math
 from datetime import datetime, timezone
 
 from data import STATION
+from engine import V3_CARD
+
+STATUS_LINE = ("The v3 model beats the persistence rule on rolling out-of-sample forecasts, but outcomes are "
+               "radar-detected water only and are not yet validated in the field." if V3_CARD else
+               "A simple persistence rule currently scores as well as the model, and outcomes are not yet "
+               "validated in the field.")
+
+
+def reliability_text(h: int, sc: dict) -> str:
+    if V3_CARD:
+        ev = V3_CARD["evaluation"][str(h)]["full"]
+        op = ev["precision_threshold"]
+        return (f"Each issue from {ev['date_from']} to {ev['date_to']} was produced by a model refitted every "
+                f"{V3_CARD['horizons'][str(h)]['refit_every_days']} days on "
+                f"outcomes known at the time, with its alert line set from earlier forecasts only. Over those "
+                f"{ev['rows']:,} forecasts the {h}-day model reached PR-AUC {ev['pr_auc']:.3f} against a base rate of "
+                f"{ev['base_rate']:.3f} (persistence rule {ev['B1_pr_auc']:.3f}); its alerts were correct "
+                f"{op['precision']:.0%} of the time and caught {op['recall']:.0%} of new water.")
+    return (f"Model fitted on 2023-03 to 2024-12, calibrated on 2025-01 to 2025-08 and tested once on 2025-09 onward. "
+            f"On that untouched test window the {h}-day model reached PR-AUC {sc['pr_auc']:.3f} against a base rate of "
+            f"{sc['base_rate']:.3f} (skill {sc['pr_auc']/sc['base_rate']:.1f}&times; chance), recall {sc['recall']:.2f} "
+            f"and precision {sc['precision']:.2f} at the operating threshold. Weather inputs come from a single station, "
+            f"so spatial differences come from radar alone.")
 
 CAT_COL = {"high": "#c2410c", "moderate": "#b7791f", "insufficient": "#2a6fb8", "lower": "#b9c3cc"}
 CAT_TXT = {"high": "High priority for verification", "moderate": "Moderate priority for verification",
@@ -139,8 +162,7 @@ footer {{ margin-top: 18px; border-top: 1px solid #d5dbe0; padding-top: 6px; fon
 <div class="band"><b>What this bulletin forecasts.</b> The appearance of new surface water, seen by Sentinel-1 radar, at 50 m monitoring
 points that are dry today. It does not confirm mosquito larvae, vector presence or malaria risk.
 Points marked <i>Insufficient evidence</i> cannot be classified by the model; only an inspection can.
-<b>Model status: research stage.</b> A simple persistence rule currently scores as well as the model, and outcomes are not yet
-validated in the field. Use this bulletin to prioritise inspections; a forecast never authorises treatment.
+<b>Model status: research stage.</b> {STATUS_LINE} Use this bulletin to prioritise inspections; a forecast never authorises treatment.
 Mode: <b>hindcast replay</b> (no numerical weather forecast connected).</div>
 
 <div class="kpis">
@@ -171,11 +193,8 @@ Mode: <b>hindcast replay</b> (no numerical weather forecast connected).</div>
 <table><tr><th>Sortie</th><th class="n">Targets</th><th class="n">Treat</th><th class="n">Verify</th><th class="n">km</th><th class="n">min</th><th class="n">Spray L</th></tr>{srows}</table>
 
 <h2>Forecast reliability</h2>
-<p class="small">Model fitted on 2023-03 to 2024-12, calibrated on 2025-01 to 2025-08 and tested once on 2025-09 onward.
-On that untouched test window the {h}-day model reached PR-AUC {sc['pr_auc']:.3f} against a base rate of {sc['base_rate']:.3f}
-(skill {sc['pr_auc']/sc['base_rate']:.1f}&times; chance), recall {sc['recall']:.2f} and precision {sc['precision']:.2f} at the operating threshold.
-Accuracy is not reported because predicting &ldquo;no formation&rdquo; everywhere would already exceed 96%.
-Weather inputs come from a single station, so spatial differences come from radar alone.</p>
+<p class="small">{reliability_text(h, sc)}
+Accuracy is not reported because predicting &ldquo;no formation&rdquo; everywhere would already exceed 96%.</p>
 
 <div class="sig"><div>Reviewed by (District Vector Control)</div><div>Approved for flight (Programme Manager)</div></div>
 <footer><span>Model {m['fingerprint']} &middot; engine {card['engine_version']} &middot; research stage &middot; valid {meta['valid_window'][0]} to {meta['valid_window'][1]}</span><span>{ref} &middot; page 1 of 1</span></footer>

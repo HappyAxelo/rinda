@@ -17,9 +17,12 @@ def test_legacy_api_alias_still_works(app):
     assert app.get("/api/forecast?h=7").status_code == 200
 
 
-def test_engine_reproduces_published_7day_score(app):
-    rep = app.get("/api/v1/bootstrap").json()["model"]["horizons"]["7"]["reproduction"]
-    assert rep["abs_diff_pr_auc"] < 0.01
+def test_served_model_is_v3_and_beats_persistence(app):
+    m = app.get("/api/v1/bootstrap").json()["model"]
+    assert m["model_version"] == "v3"
+    for h in ("7", "14"):
+        sc = m["horizons"][h]["test_scores"]
+        assert sc["pr_auc"] > sc["B1_pr_auc"]
 
 
 def test_forecast_carries_provenance_and_status(app):
@@ -48,7 +51,8 @@ def test_categories_follow_documented_rules(app):
 
 def test_research_stage_reason_cites_baseline(app):
     ms = app.get("/api/v1/bootstrap").json()["horizons"]["7"]["model_status"]
-    assert ms["outperforms_baseline"] is False and "persistence" in ms["reasons"][0].lower()
+    assert ms["status"] == "research_stage" and "persistence" in ms["reasons"][0].lower()
+    assert ms["outperforms_baseline"] is (ms["model_pr_auc"] > ms["best_baseline_pr_auc"])
 
 
 def test_replay_uses_only_out_of_sample_issues(app):
@@ -133,10 +137,11 @@ def test_upload_size_limit(roles):
     assert r.status_code == 413
 
 
-def test_latest_issue_with_missing_weather_serialises(app):
-    """Regression: the latest issue has no 7-day rainfall (weather ends 5 days
-    earlier); scenario and explain must return nulls, not fail on NaN."""
-    s = app.get("/api/v1/scenario?site=G0473&date=2026-01-20&h=7&rain=1&temp=0")
-    assert s.status_code == 200 and s.json()["observed_rain_7d"] is None and s.json()["missing_inputs"]
-    e = app.get("/api/v1/explain?site=G0473&date=2026-01-20&h=7")
-    assert e.status_code == 200 and e.json()["missing_inputs"]
+def test_latest_issue_explains_and_serialises(app):
+    """Regression: missing inputs travel as null, never as NaN, on the latest issue."""
+    f = app.get("/api/v1/forecast?h=7").json()
+    site, date = f["rows"][0]["site_id"], f["summary"]["issue_date"]
+    s = app.get(f"/api/v1/scenario?site={site}&date={date}&h=7&rain=1&temp=0")
+    assert s.status_code == 200 and s.json()["available"]
+    e = app.get(f"/api/v1/explain?site={site}&date={date}&h=7")
+    assert e.status_code == 200 and e.json()["available"] and e.json()["drivers"]

@@ -1,0 +1,628 @@
+{
+  "version": "v3",
+  "selection": {
+    "7": {
+      "window": [
+        "2025-01-01",
+        "2025-08-31"
+      ],
+      "candidates": {
+        "R0_static_v2": {
+          "n_features": 170,
+          "refit_every_days": null,
+          "seeds": 1,
+          "val_pr_auc": 0.5785441068836629,
+          "val_B1": 0.4766929924400476,
+          "rows": 32198,
+          "events": 700,
+          "seconds": 21
+        },
+        "R1_refit28_v2": {
+          "n_features": 170,
+          "refit_every_days": 28,
+          "seeds": 1,
+          "val_pr_auc": 0.5885611519322161,
+          "val_B1": 0.4766929924400476,
+          "rows": 32198,
+          "events": 700,
+          "seconds": 206
+        },
+        "R2_refit14_v2": {
+          "n_features": 170,
+          "refit_every_days": 14,
+          "seeds": 1,
+          "val_pr_auc": 0.5904931306456385,
+          "val_B1": 0.4766929924400476,
+          "rows": 32198,
+          "events": 700,
+          "seconds": 448
+        },
+        "R3_refit28_v2_3seeds": {
+          "n_features": 170,
+          "refit_every_days": 28,
+          "seeds": 3,
+          "val_pr_auc": 0.5887431071321817,
+          "val_B1": 0.4766929924400476,
+          "rows": 32198,
+          "events": 700,
+          "seconds": 611
+        },
+        "R4_refit28_altfeatures": {
+          "n_features": 113,
+          "refit_every_days": 28,
+          "seeds": 1,
+          "val_pr_auc": 0.5861232227250033,
+          "val_B1": 0.4766929924400476,
+          "rows": 32198,
+          "events": 700,
+          "seconds": 173
+        }
+      },
+      "chosen": "R2_refit14_v2"
+    },
+    "14": {
+      "window": [
+        "2025-01-01",
+        "2025-08-31"
+      ],
+      "candidates": {
+        "R0_static_v2": {
+          "n_features": 113,
+          "refit_every_days": null,
+          "seeds": 1,
+          "val_pr_auc": 0.6126476142090513,
+          "val_B1": 0.4935638156438278,
+          "rows": 30122,
+          "events": 595,
+          "seconds": 11
+        },
+        "R1_refit28_v2": {
+          "n_features": 113,
+          "refit_every_days": 28,
+          "seeds": 1,
+          "val_pr_auc": 0.6214270670225451,
+          "val_B1": 0.4935638156438278,
+          "rows": 30122,
+          "events": 595,
+          "seconds": 109
+        },
+        "R2_refit14_v2": {
+          "n_features": 113,
+          "refit_every_days": 14,
+          "seeds": 1,
+          "val_pr_auc": 0.5930695287706318,
+          "val_B1": 0.4935638156438278,
+          "rows": 30122,
+          "events": 595,
+          "seconds": 203
+        },
+        "R3_refit28_v2_3seeds": {
+          "n_features": 113,
+          "refit_every_days": 28,
+          "seeds": 3,
+          "val_pr_auc": 0.6216391948735854,
+          "val_B1": 0.4935638156438278,
+          "rows": 30122,
+          "events": 595,
+          "seconds": 285
+        },
+        "R4_refit28_altfeatures": {
+          "n_features": 170,
+          "refit_every_days": 28,
+          "seeds": 1,
+          "val_pr_auc": 0.6084960044911101,
+          "val_B1": 0.4935638156438278,
+          "rows": 30122,
+          "events": 595,
+          "seconds": 125
+        }
+      },
+      "chosen": "R3_refit28_v2_3seeds"
+    }
+  },
+  "evaluation": {
+    "7": {
+      "chosen": "R2_refit14_v2",
+      "full": {
+        "window": "Sep 2025 - Sep 2026",
+        "rows": 65563,
+        "events": 2203,
+        "base_rate": 0.03360126900843464,
+        "date_from": "2025-09-03",
+        "date_to": "2026-09-30",
+        "pr_auc": 0.7860127977990972,
+        "B1_pr_auc": 0.5700543611523404,
+        "ci": {
+          "metric": "pr_auc",
+          "mean": 0.7853684959691266,
+          "sd": 0.02386700677212722,
+          "lo": 0.733049251196518,
+          "hi": 0.8284232514472829,
+          "n_resamples": 500
+        },
+        "brier": 0.0137282489910002,
+        "f1_threshold": {
+          "alerts": 2785,
+          "hits": 1756,
+          "false_alarms": 1029,
+          "misses": 447,
+          "precision": 0.6305206463195692,
+          "recall": 0.7970948706309577,
+          "f1": 0.7040898155573376
+        },
+        "precision_threshold": {
+          "alerts": 1868,
+          "hits": 1396,
+          "false_alarms": 472,
+          "misses": 807,
+          "precision": 0.7473233404710921,
+          "recall": 0.6336813436223332,
+          "f1": 0.6858265782363056
+        },
+        "conformal": {
+          "coverage": 0.9077986059210226,
+          "share_uncertain": 0.00517059927093025,
+          "formation_calls": 4924,
+          "formation_call_precision": 0.41835905767668563
+        },
+        "v2_same_rows": {
+          "rows": 64523,
+          "v3_pr_auc": 0.7894674767817309,
+          "v2_pr_auc": 0.7451872861896028,
+          "v2_op": {
+            "alerts": 2700,
+            "hits": 1680,
+            "false_alarms": 1020,
+            "misses": 504,
+            "precision": 0.6222222222222222,
+            "recall": 0.7692307692307693,
+            "f1": 0.687960687960688
+          },
+          "v3_minus_v2": {
+            "delta": 0.044280190592128066,
+            "lo": 0.03361570160451434,
+            "hi": 0.05517868291832118,
+            "p_le0": 0.0
+          }
+        }
+      },
+      "test": {
+        "window": "test (Sep 2025 - Jan 2026)",
+        "rows": 24871,
+        "events": 779,
+        "base_rate": 0.03132161955691368,
+        "date_from": "2025-09-03",
+        "date_to": "2026-01-26",
+        "pr_auc": 0.7094396419734907,
+        "B1_pr_auc": 0.5037334457583006,
+        "ci": {
+          "metric": "pr_auc",
+          "mean": 0.7106414036252584,
+          "sd": 0.033297812431188976,
+          "lo": 0.6355449420429098,
+          "hi": 0.7718111374500987,
+          "n_resamples": 500
+        },
+        "brier": 0.014882099934564231,
+        "f1_threshold": {
+          "alerts": 912,
+          "hits": 566,
+          "false_alarms": 346,
+          "misses": 213,
+          "precision": 0.6206140350877193,
+          "recall": 0.7265725288831836,
+          "f1": 0.6694263749260793
+        },
+        "precision_threshold": {
+          "alerts": 410,
+          "hits": 329,
+          "false_alarms": 81,
+          "misses": 450,
+          "precision": 0.802439024390244,
+          "recall": 0.42233632862644416,
+          "f1": 0.5534062237174096
+        },
+        "conformal": {
+          "coverage": 0.9217160548429898,
+          "share_uncertain": 0.013630332515781432,
+          "formation_calls": 1987,
+          "formation_call_precision": 0.3704076497232008
+        },
+        "v2_same_rows": {
+          "rows": 23831,
+          "v3_pr_auc": 0.7203286945774459,
+          "v2_pr_auc": 0.6547239515685664,
+          "v2_op": {
+            "alerts": 749,
+            "hits": 489,
+            "false_alarms": 260,
+            "misses": 271,
+            "precision": 0.6528704939919893,
+            "recall": 0.6434210526315789,
+            "f1": 0.6481113320079522
+          },
+          "v3_minus_v2": {
+            "delta": 0.06560474300887942,
+            "lo": 0.03648827502333918,
+            "hi": 0.10043501310169432,
+            "p_le0": 0.0
+          }
+        }
+      },
+      "forward": {
+        "window": "forward (Feb - Sep 2026)",
+        "rows": 40692,
+        "events": 1424,
+        "base_rate": 0.03499459353189816,
+        "date_from": "2026-01-31",
+        "date_to": "2026-09-30",
+        "pr_auc": 0.824649035350908,
+        "B1_pr_auc": 0.6025938682816383,
+        "ci": {
+          "metric": "pr_auc",
+          "mean": 0.8238277807060309,
+          "sd": 0.023707162745773235,
+          "lo": 0.7722777622980592,
+          "hi": 0.8694812256411764,
+          "n_resamples": 500
+        },
+        "brier": 0.01302301388785017,
+        "f1_threshold": {
+          "alerts": 1873,
+          "hits": 1190,
+          "false_alarms": 683,
+          "misses": 234,
+          "precision": 0.6353443673251469,
+          "recall": 0.8356741573033708,
+          "f1": 0.721868365180467
+        },
+        "precision_threshold": {
+          "alerts": 1458,
+          "hits": 1067,
+          "false_alarms": 391,
+          "misses": 357,
+          "precision": 0.7318244170096022,
+          "recall": 0.7492977528089888,
+          "f1": 0.7404580152671756
+        },
+        "conformal": {
+          "coverage": 0.8992922441757594,
+          "share_uncertain": 0.0,
+          "formation_calls": 2937,
+          "formation_call_precision": 0.4508001361933946
+        },
+        "v2_same_rows": {
+          "rows": 40692,
+          "v3_pr_auc": 0.824649035350908,
+          "v2_pr_auc": 0.7898412204787951,
+          "v2_op": {
+            "alerts": 1951,
+            "hits": 1191,
+            "false_alarms": 760,
+            "misses": 233,
+            "precision": 0.610456176319836,
+            "recall": 0.836376404494382,
+            "f1": 0.7057777777777777
+          },
+          "v3_minus_v2": {
+            "delta": 0.03480781487211293,
+            "lo": 0.028366548603018307,
+            "hi": 0.04013572816111029,
+            "p_le0": 0.0
+          }
+        }
+      }
+    },
+    "14": {
+      "chosen": "R3_refit28_v2_3seeds",
+      "full": {
+        "window": "Sep 2025 - Sep 2026",
+        "rows": 62433,
+        "events": 1660,
+        "base_rate": 0.026588502875082087,
+        "date_from": "2025-09-03",
+        "date_to": "2026-09-24",
+        "pr_auc": 0.6631987359232823,
+        "B1_pr_auc": 0.4459032546398953,
+        "ci": {
+          "metric": "pr_auc",
+          "mean": 0.6605188149356089,
+          "sd": 0.026858499295400778,
+          "lo": 0.5981446876938872,
+          "hi": 0.7028988828982067,
+          "n_resamples": 500
+        },
+        "brier": 0.013901979364481978,
+        "f1_threshold": {
+          "alerts": 1997,
+          "hits": 1142,
+          "false_alarms": 855,
+          "misses": 518,
+          "precision": 0.5718577866800201,
+          "recall": 0.6879518072289157,
+          "f1": 0.6245556467049495
+        },
+        "precision_threshold": {
+          "alerts": 1134,
+          "hits": 813,
+          "false_alarms": 321,
+          "misses": 847,
+          "precision": 0.716931216931217,
+          "recall": 0.48975903614457833,
+          "f1": 0.5819613457408733
+        },
+        "conformal": {
+          "coverage": 0.903512565470184,
+          "share_uncertain": 0.0028190219915749685,
+          "formation_calls": 4963,
+          "formation_call_precision": 0.308684263550272
+        },
+        "v2_same_rows": {
+          "rows": 60864,
+          "v3_pr_auc": 0.6616348749296792,
+          "v2_pr_auc": 0.6420057269024853,
+          "v2_op": {
+            "alerts": 2199,
+            "hits": 1160,
+            "false_alarms": 1039,
+            "misses": 456,
+            "precision": 0.527512505684402,
+            "recall": 0.7178217821782178,
+            "f1": 0.6081258191349934
+          },
+          "v3_minus_v2": {
+            "delta": 0.019629148027193954,
+            "lo": 0.001847792541699972,
+            "hi": 0.03848498338587155,
+            "p_le0": 0.02
+          }
+        }
+      },
+      "test": {
+        "window": "test (Sep 2025 - Jan 2026)",
+        "rows": 23834,
+        "events": 613,
+        "base_rate": 0.025719560292019803,
+        "date_from": "2025-09-03",
+        "date_to": "2026-01-26",
+        "pr_auc": 0.6568191070135174,
+        "B1_pr_auc": 0.4041116476072618,
+        "ci": {
+          "metric": "pr_auc",
+          "mean": 0.6543896575945511,
+          "sd": 0.03492321837822208,
+          "lo": 0.5697511505048805,
+          "hi": 0.7097349181589042,
+          "n_resamples": 500
+        },
+        "brier": 0.01386270663265285,
+        "f1_threshold": {
+          "alerts": 705,
+          "hits": 403,
+          "false_alarms": 302,
+          "misses": 210,
+          "precision": 0.5716312056737589,
+          "recall": 0.6574225122349103,
+          "f1": 0.6115326251896813
+        },
+        "precision_threshold": {
+          "alerts": 266,
+          "hits": 207,
+          "false_alarms": 59,
+          "misses": 406,
+          "precision": 0.7781954887218046,
+          "recall": 0.3376835236541599,
+          "f1": 0.4709897610921502
+        },
+        "conformal": {
+          "coverage": 0.9134849374842662,
+          "share_uncertain": 0.007384408827725099,
+          "formation_calls": 2087,
+          "formation_call_precision": 0.2788691902252036
+        },
+        "v2_same_rows": {
+          "rows": 22265,
+          "v3_pr_auc": 0.6530850593690373,
+          "v2_pr_auc": 0.5872772251583745,
+          "v2_op": {
+            "alerts": 1111,
+            "hits": 458,
+            "false_alarms": 653,
+            "misses": 111,
+            "precision": 0.41224122412241226,
+            "recall": 0.804920913884007,
+            "f1": 0.5452380952380952
+          },
+          "v3_minus_v2": {
+            "delta": 0.06580783421066272,
+            "lo": 0.03311746541890365,
+            "hi": 0.11088835635748572,
+            "p_le0": 0.0
+          }
+        }
+      },
+      "forward": {
+        "window": "forward (Feb - Sep 2026)",
+        "rows": 38599,
+        "events": 1047,
+        "base_rate": 0.02712505505323972,
+        "date_from": "2026-01-31",
+        "date_to": "2026-09-24",
+        "pr_auc": 0.6744350103738848,
+        "B1_pr_auc": 0.4667526886156978,
+        "ci": {
+          "metric": "pr_auc",
+          "mean": 0.6721067919060847,
+          "sd": 0.029088021261838258,
+          "lo": 0.6052173851778997,
+          "hi": 0.7210037265471219,
+          "n_resamples": 500
+        },
+        "brier": 0.013926229378482742,
+        "f1_threshold": {
+          "alerts": 1292,
+          "hits": 739,
+          "false_alarms": 553,
+          "misses": 308,
+          "precision": 0.5719814241486069,
+          "recall": 0.7058261700095511,
+          "f1": 0.6318939717828131
+        },
+        "precision_threshold": {
+          "alerts": 868,
+          "hits": 606,
+          "false_alarms": 262,
+          "misses": 441,
+          "precision": 0.6981566820276498,
+          "recall": 0.5787965616045845,
+          "f1": 0.6328981723237598
+        },
+        "conformal": {
+          "coverage": 0.8973548537526879,
+          "share_uncertain": 0.0,
+          "formation_calls": 2876,
+          "formation_call_precision": 0.33031988873435325
+        },
+        "v2_same_rows": {
+          "rows": 38599,
+          "v3_pr_auc": 0.6744350103738848,
+          "v2_pr_auc": 0.6770811285838411,
+          "v2_op": {
+            "alerts": 1088,
+            "hits": 702,
+            "false_alarms": 386,
+            "misses": 345,
+            "precision": 0.6452205882352942,
+            "recall": 0.670487106017192,
+            "f1": 0.6576112412177986
+          },
+          "v3_minus_v2": {
+            "delta": -0.002646118209956305,
+            "lo": -0.026518549258609265,
+            "hi": 0.013215763519169064,
+            "p_le0": 0.614
+          }
+        }
+      }
+    }
+  },
+  "manifest": {
+    "built_utc": "2026-10-16T11:27:51Z",
+    "models": {
+      "h7": {
+        "file": "operational_h7.joblib",
+        "candidate": "R2_refit14_v2",
+        "trained_to": "2026-09-30",
+        "rows": 145784,
+        "events": 3547,
+        "n_features": 170,
+        "thr_f1": 0.3846,
+        "thr_precision": 0.4326241134751773,
+        "recalibration_window": [
+          "2025-10-03",
+          "2026-09-30"
+        ]
+      },
+      "h14": {
+        "file": "operational_h14.joblib",
+        "candidate": "R3_refit28_v2_3seeds",
+        "trained_to": "2026-09-24",
+        "rows": 140490,
+        "events": 2822,
+        "n_features": 113,
+        "thr_f1": 0.2979,
+        "thr_precision": 0.5693779904306221,
+        "recalibration_window": [
+          "2025-09-27",
+          "2026-09-24"
+        ]
+      }
+    }
+  },
+  "water_thresholds": {
+    "f1": 0.7621444752076516,
+    "vv_db_max": -15.0,
+    "vh_db_max": -17.5,
+    "series": "rtc_harmonised",
+    "reference": "Sentinel-2 MNDWI > 0 (training window)"
+  },
+  "protocol": "# v3 retraining protocol (written 2026-10-16, before any v3 result was computed)\n\nGoal: higher precision of habitat-formation alerts without losing the honest-evaluation chain of v2.\n\n1. Features, labels and tuned hyper-parameters are those of v2 (outputs/v2/tune.json). No re-tuning on later data.\n2. Candidates (scripts/v3_retrain.py `candidates`):\n   R0 static fit (v2 equivalent); R1 refit every 28 d; R2 refit every 14 d; R3 refit every 28 d with 3 seeds per learner;\n   R4 refit every 28 d with the alternative feature set (h7: no weather/S2; h14: with weather/S2).\n3. Selection uses ONLY rolling forecasts on the v2 validation window, 2025-01-01..2025-08-31.\n   Each refit sees outcomes with date <= origin - h - 2. Rule: highest validation PR-AUC.\n4. Evaluation: chosen candidate, rolling from 2025-01-01 to the last labelled date. Calibration (isotonic),\n   the best-F1 threshold, the high-precision threshold (lowest threshold with precision >= 0.75 and >= 30 calls)\n   and the conformal pool (last 120 d) are re-estimated at every origin from EARLIER out-of-sample forecasts only.\n   Reported window: 2025-09-01 onwards, with test (to 2026-01-26) and forward (after) sub-windows,\n   against B1 (WATER_FREQ_30D) and the frozen v2 models on identical rows, 500-draw spatial block bootstrap.\n5. Caveat stated in every write-up: Feb-Sep 2026 was blind for v2, not for v3 (its v2 scores were known).\n6. Operational model: chosen candidate refit on every labelled row; recalibration from the last 365 d of OOS forecasts.\n",
+  "horizons": {
+    "7": {
+      "n_features": 170,
+      "trained_to": "2026-09-30",
+      "refit_every_days": 14,
+      "thr_f1": 0.3846,
+      "thr_precision": 0.4326241134751773,
+      "recal_window": [
+        "2025-10-03",
+        "2026-09-30"
+      ],
+      "families": {
+        "geometry": 4,
+        "orbit_memory": 18,
+        "site_memory": 10,
+        "past_outcomes": 3,
+        "season": 2,
+        "neighbourhood": 5,
+        "rain_response_past": 1,
+        "terrain": 12,
+        "static_water_landcover": 14,
+        "sentinel2": 16,
+        "era5land": 23,
+        "chirps": 12,
+        "nwp_forecast": 6,
+        "sar_base": 44
+      },
+      "sha256": "4fcf531054c2a912b5f895c4a65ee39970a94c9fced657971e1a31cab2a57bb6",
+      "product_rows": 65563,
+      "product_issues": 124,
+      "served_tiers_share": {
+        "no_formation": 0.8717264310663027,
+        "uncertain": 0.09978188917529704,
+        "formation": 0.028491679758400317
+      },
+      "served_tiers_event_rate": {
+        "formation": 0.7473233404710921,
+        "no_formation": 0.0005948944062428919,
+        "uncertain": 0.11815958422500765
+      }
+    },
+    "14": {
+      "n_features": 113,
+      "trained_to": "2026-09-24",
+      "refit_every_days": 28,
+      "thr_f1": 0.2979,
+      "thr_precision": 0.5693779904306221,
+      "recal_window": [
+        "2025-09-27",
+        "2026-09-24"
+      ],
+      "families": {
+        "geometry": 4,
+        "orbit_memory": 18,
+        "site_memory": 10,
+        "past_outcomes": 3,
+        "season": 2,
+        "neighbourhood": 5,
+        "rain_response_past": 1,
+        "terrain": 12,
+        "static_water_landcover": 14,
+        "sar_base": 44
+      },
+      "sha256": "49006102f63384c3d09998eaa9aeaafc7c9033e993e33610684d99ad870334aa",
+      "product_rows": 62433,
+      "product_issues": 118,
+      "served_tiers_share": {
+        "no_formation": 0.8767799080614419,
+        "uncertain": 0.1050566206973876,
+        "formation": 0.018163471241170535
+      },
+      "served_tiers_event_rate": {
+        "formation": 0.716931216931217,
+        "no_formation": 0.0007124588966021191,
+        "uncertain": 0.12318951059612746
+      }
+    }
+  }
+}

@@ -34,9 +34,9 @@ docker build -t rinda .
 docker run -p 7860:7860 rinda
 ```
 
-Open http://localhost:8740 (or :7860 for Docker). The first start fits both forecast models
-from the bundled study tables (under a minute) and caches them in `var/models/`; the Docker
-image fits them at build time. API reference: `/api/docs` (documented base path `/api/v1`).
+Open http://localhost:8740 (or :7860 for Docker). The console serves the v3 forecast models
+bundled in `study/v3/` (built by `scripts/v3_export_rinda.py` in habitat-forecast). Without that
+bundle it falls back to fitting the v1 study model and caching it in `var/models/`. API reference: `/api/docs` (documented base path `/api/v1`).
 
 Tests: `pip install pytest httpx && pytest -q tests`.
 
@@ -69,8 +69,8 @@ Tests: `pip install pytest httpx && pytest -q tests`.
 ## Status
 
 **Technically deployable for controlled evaluation; not scientifically validated for intervention decisions.**
-The forecast model is research stage (a persistence baseline still scores higher) and the data archive ends on
-2026-01-20, so every forecast is shown as stale. See `docs/readiness-assessment.md`.
+The forecast model is research stage (it now beats the persistence baseline, but has no field validation and no
+untouched test of v3 yet) and the data archive ends on 2026-09-30, so every forecast is shown as stale. See `docs/readiness-assessment.md`.
 
 ## Roles and sign-in
 
@@ -123,10 +123,16 @@ an account creates is labelled DEMO. Operational deployments set `RINDA_DEMO=0` 
 
 ## Findings the console surfaces
 
-- At 7 days the simple persistence rule "30-day water frequency" scores PR-AUC 0.628
-  against the model's 0.581 on the same test rows (`outputs/reference_forecasts.csv`).
-  At 14 days it scores 0.629 against 0.310. Model Assurance states this plainly.
-- Weather comes from one station, so site-to-site differences come from radar alone.
+- v3 (2026-10-16): the v2 model refitted every 14 days (7-day horizon) or
+  28 days (14-day), with calibration and alert line taken from earlier forecasts. Rolling
+  out-of-sample PR-AUC 2025-09-03 to 2026-09-30: 0.786 at 7 d and 0.663 at 14 d,
+  against 0.570 / 0.446 for the 30-day water-frequency persistence rule and
+  0.745 / 0.642 for the frozen v2 model.
+- "High priority" now means the high-precision alert line (target precision 0.75): precision
+  0.75 at 7 d and 0.72 at 14 d. See `docs/changes-2026-10-16.md`.
+- The v1 model (PR-AUC 0.581, beaten by persistence at 0.628) stays on Model Assurance as the archived Paper 1 run.
+- Rainfall (station, CHIRPS, ERA5-Land, ECMWF/GFS) adds no measurable skill; the forecast rests on radar history,
+  orbit geometry and terrain.
 - Mode is hindcast until a numerical rainfall forecast feed is connected.
 
 ## Layout

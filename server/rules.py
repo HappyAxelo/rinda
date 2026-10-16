@@ -13,7 +13,7 @@ from functools import lru_cache
 import pandas as pd
 
 from data import store
-from engine import ENGINE, ENGINE_VERSION, ROOT, RUN_SUMMARY
+from engine import ENGINE, ENGINE_VERSION, ROOT, RUN_SUMMARY, V3_CARD
 
 RULES_PATH = ROOT / "config" / "operational_rules.json"
 TOLERANCE_DAYS = 2  # target matched to the nearest radar pass within +/- 2 days
@@ -37,6 +37,8 @@ def today() -> date:
 # ------------------------------------------------------------- model status
 @lru_cache(maxsize=None)
 def model_status(h: int) -> dict:
+    if V3_CARD:
+        return _model_status_v3(h)
     refs = store().assurance()["references"]
     rows = [r for r in refs if r["horizon"] == h]
     model = next(r for r in rows if r["reference"] == "model")
@@ -54,6 +56,26 @@ def model_status(h: int) -> dict:
         ],
         "model_pr_auc": model["pr_auc"], "best_baseline": base["reference"], "best_baseline_pr_auc": base["pr_auc"],
         "outperforms_baseline": not beaten,
+    }
+
+
+def _model_status_v3(h: int) -> dict:
+    ev = V3_CARD["evaluation"][str(h)]["full"]
+    m, b1, v2 = ev["pr_auc"], ev["B1_pr_auc"], ev["v2_same_rows"]["v2_pr_auc"]
+    op = ev["precision_threshold"]
+    return {
+        "status": "research_stage",
+        "label": "Research stage: not validated for intervention decisions",
+        "reasons": [
+            f"Rolling out-of-sample forecasts {ev['date_from']} to {ev['date_to']}: PR-AUC {m:.3f}, against "
+            f"{b1:.3f} for the 30-day water-frequency persistence rule and {v2:.3f} for the frozen v2 model.",
+            f"High-priority alerts (precision target 0.75): precision {op['precision']:.2f}, recall {op['recall']:.2f}.",
+            "No field (entomological) validation yet: outcomes are radar-detected water only.",
+            "The Feb-Sep 2026 window was blind for v2 but not for v3; v3 still needs an untouched test.",
+            "Rainfall inputs add no measurable skill; the forecast rests on radar history, orbit geometry and terrain.",
+        ],
+        "model_pr_auc": m, "best_baseline": "B1_recent_water_freq_30d", "best_baseline_pr_auc": b1,
+        "outperforms_baseline": m > b1,
     }
 
 
@@ -117,20 +139,27 @@ def forecast_meta(h: int, issue: str) -> dict:
         warnings.append({"level": "warn", "code": "weather_gap",
                          "message": f"Weather inputs end {weather_lag if weather_lag is not None else 'before the record'} days before the issue date."})
     if h == 14:
-        warnings.append({"level": "warn", "code": "long_horizon",
-                         "message": "14-day forecasts are markedly less reliable than 7-day forecasts (PR-AUC 0.31 vs 0.58). Treat as an early outlook."})
+        if V3_CARD:
+            e7, e14 = (V3_CARD["evaluation"][k]["full"]["pr_auc"] for k in ("7", "14"))
+            msg = f"14-day forecasts are less reliable than 7-day forecasts (PR-AUC {e14:.2f} vs {e7:.2f}). Treat as an early outlook."
+        else:
+            msg = "14-day forecasts are markedly less reliable than 7-day forecasts (PR-AUC 0.31 vs 0.58). Treat as an early outlook."
+        warnings.append({"level": "warn", "code": "long_horizon", "message": msg})
     m = ENGINE.models[h]
     return {
         "issue_date": issue, "horizon_days": h,
         "target_date": target.isoformat(),
         "valid_window": [(target - timedelta(days=TOLERANCE_DAYS)).isoformat(), expires.isoformat()],
         "generated_utc": RUN_SUMMARY.get("finished_utc"),
-        "generation": "Hindcast: produced in one study run after the fact, using only inputs dated on or before each issue date.",
+        "generation": ("Rolling hindcast: each issue comes from a model refitted on outcomes observable before it, "
+                       "with calibration and alert line taken from earlier forecasts only.") if V3_CARD else
+                      "Hindcast: produced in one study run after the fact, using only inputs dated on or before each issue date.",
         "target": TARGET, "units": "Calibrated probability (0–1) and a 90% conformal call",
         "spatial_resolution": RESOLUTION,
         "inputs": {"radar_last_pass": radar, "radar_lag_days": radar_lag,
                    "weather_last_day": weather, "weather_lag_days": weather_lag},
-        "model": {"engine": ENGINE_VERSION, "fingerprint": m.fingerprint, "algorithm": "XGBoost + isotonic calibration",
+        "model": {"engine": ENGINE_VERSION, "fingerprint": m.fingerprint,
+                  "algorithm": "XGBoost + LightGBM, scheduled refits (v3)" if V3_CARD else "XGBoost + isotonic calibration",
                   "train_window": m.train_window, "calibration_window": m.val_window, "test_window": m.test_window},
         "model_status": model_status(h),
         "mode": RUN_SUMMARY["provenance"]["mode"],

@@ -11,7 +11,7 @@ from functools import lru_cache
 import numpy as np
 import pandas as pd
 
-from engine import CFG, HF, HORIZONS, RUN_SUMMARY
+from engine import CFG, HF, HORIZONS, RUN_SUMMARY, V3, V3_CARD
 
 OUT = HF / "outputs"
 RAW = HF / "data" / "raw"
@@ -41,7 +41,11 @@ class Store:
         self.sites = pd.read_csv(RAW / "sites.csv")
         self.meteo = pd.read_csv(RAW / "Cleaned_meteo_rwanda_daily_gee.csv", parse_dates=["date"])
         derived = HF / "data" / "derived" / "s1_primary_buffer.parquet"
-        if derived.exists():  # descending pass, primary buffer: built from the raw CSV
+        if V3_CARD:  # orbit-harmonised RTC series the v3 labels are built from
+            s1 = pd.read_parquet(V3 / "s1_50m.parquet")
+            self.s1 = (s1.groupby(["site_id", "date"], as_index=False)
+                         .agg(vv_db=("vv_db", "mean"), vh_db=("vh_db", "mean"), n_valid_px=("n_valid_px", "sum")))
+        elif derived.exists():  # descending pass, primary buffer: built from the raw CSV
             self.s1 = pd.read_parquet(derived)
         else:
             prim = CFG["sources"]["sentinel1"]["primary_buffer_m"]
@@ -52,6 +56,12 @@ class Store:
         self.s1_dates = sorted(self.s1.date.dt.strftime("%Y-%m-%d").unique())
         self.product: dict[int, pd.DataFrame] = {}
         for h in HORIZONS:
+            if V3_CARD:
+                p = pd.read_csv(V3 / f"product_h{h}.csv", parse_dates=["date", "origin"])
+                p = p.merge(self.sites[["site_id", "stratum", "water_freq"]], on="site_id", how="left")
+                p["target_date"] = p["date"] + pd.to_timedelta(h, unit="D")
+                self.product[h] = p
+                continue
             p = pd.read_csv(OUT / f"forecast_product_A_new_water_h{h}.csv", parse_dates=["date"])
             tbl = pd.read_parquet(HF / "data" / "processed" / f"table_A_new_water_h{h}.parquet",
                                   columns=["site_id", "date", "y", "season", "rainfall_regime"])
@@ -61,6 +71,13 @@ class Store:
             p["target_date"] = p["date"] + pd.to_timedelta(h, unit="D")
             self.product[h] = p
         self.thr = {r["horizon"]: r["holdout"]["threshold"] for r in RUN_SUMMARY["results"]}
+        if V3_CARD:  # the high-precision alert line of the current refit
+            self.thr = {h: V3_CARD["horizons"][str(h)]["thr_precision"] for h in HORIZONS}
+        self.water_thresholds = V3_CARD["water_thresholds"] if V3_CARD else RUN_SUMMARY["water_thresholds"]
+
+    def _alert(self, f: pd.DataFrame, h: int) -> pd.Series:
+        """v3 rows carry the alert line that was in force when they were issued."""
+        return f["alert_prec"].astype(bool) if "alert_prec" in f else f.probability >= self.thr[h]
 
     # ------------------------------------------------------------ forecast
     def dates(self, h: int) -> list[str]:
@@ -77,13 +94,13 @@ class Store:
         d = self.nearest_date(h, date)
         f = self.product[h]
         f = f[f.date == pd.Timestamp(d)].copy()
-        f["alert"] = f.probability >= self.thr[h]
+        f["alert"] = self._alert(f, h)
         return d, f.sort_values("priority_score", ascending=False)
 
     def verification(self, h: int) -> pd.DataFrame:
         """Per issue date: how the alerts fared against what the radar later saw."""
         f = self.product[h].dropna(subset=["y"]).copy()
-        f["alert"] = f.probability >= self.thr[h]
+        f["alert"] = self._alert(f, h)
         g = f.groupby("date")
         out = pd.DataFrame({
             "n_sites": g.size(),
@@ -106,7 +123,7 @@ class Store:
         if s.empty:
             return {}
         ts = self.s1[self.s1.site_id == site_id][["date", "vv_db", "vh_db", "n_valid_px"]]
-        thr = RUN_SUMMARY["water_thresholds"]
+        thr = self.water_thresholds
         wet = (ts.vv_db <= thr["vv_db_max"]) & (ts.vh_db <= thr["vh_db_max"])
         hist = {}
         for h in HORIZONS:
@@ -184,7 +201,8 @@ class Store:
                                   .mean().reset_index()),
             }
         refs = pd.read_csv(OUT / "reference_forecasts.csv")
-        return {"horizons": res, "references": records(refs),
+        return {"horizons": res, "v3": V3_CARD and {k: V3_CARD[k] for k in ("evaluation", "selection", "horizons",
+                                                                             "water_thresholds", "manifest")}, "references": records(refs),
                 "horizon_shift": records(pd.read_csv(OUT / "horizon_comparison_A_new_water.csv")),
                 "water_thresholds": RUN_SUMMARY["water_thresholds"],
                 "provenance": RUN_SUMMARY["provenance"], "runtime_s": RUN_SUMMARY.get("runtime_s"),

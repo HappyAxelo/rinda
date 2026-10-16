@@ -19,7 +19,7 @@ const GLOSSARY = [
   ['Persistence baseline', 'A simple rule: points that were often wet in the last 30 days will be wet again. RINDA\'s model does not yet beat it, which is why it is labelled research stage.'],
   ['Precision of calls', 'Of the points called High priority, the share where water did form.'],
   ['Detection rate', 'Of the points where water formed, the share the model called High priority.'],
-  ['Research stage', 'Validated against radar outcomes only, not yet against field findings, and not yet better than the persistence baseline. Suitable for prioritising inspections, never for authorising treatment.'],
+  ['Research stage', 'Validated against radar outcomes only, not yet against field findings. The v3 model beats the persistence baseline on rolling out-of-sample forecasts but still needs an untouched test. Suitable for prioritising inspections, never for authorising treatment.'],
   ['Verified observation', 'A field record checked by a second person. Only verified observations can support an intervention.'],
   ['Not sampled', 'No dipping was done. Never treated as "no larvae found".'],
   ['Intervention', 'A treatment such as Bti larviciding, authorised by a supervisor from a verified observation and closed by a follow-up inspection.'],

@@ -37,7 +37,7 @@ import rules as R
 import security as S
 from bulletin import render_bulletin
 from data import CLAIM, STATION, records, store
-from engine import CFG, ENGINE, ENGINE_VERSION, ROOT, RUN_SUMMARY, VAR
+from engine import CFG, ENGINE, ENGINE_VERSION, ROOT, RUN_SUMMARY, V3_CARD, VAR
 from security import User, current_user, require
 
 WEB = ROOT / "web"
@@ -522,11 +522,19 @@ def _confusion(p: pd.DataFrame) -> dict:
             "detected_or_flagged_for_verification": (hits + miss_unc) / obs if obs else None}
 
 
+LEAKAGE_NOTE = (
+    "v3 rolling hindcast: the model is refitted on a fixed cadence on outcomes observable at the refit date "
+    "(date + horizon + 2 days); calibration, alert line and conformal pool come from earlier forecasts only. "
+    "Inputs for each issue are dated on or before the issue date." if V3_CARD else
+    "Model fitted on data to 2024-12-31, calibrated to 2025-08-31; replay issues start 2025-09-03. "
+    "Inputs for each issue are dated on or before the issue date (leakage guard passed).")
+
+
 @api.get("/replay", tags=["validation"])
 def replay(h: int = 7, date: str | None = None, u: User = Depends(require("read:forecast"))):
     """What the forecast said on an issue date, which inputs it had, and what the
-    radar later saw. Products come from a model fitted only on data up to
-    2024-12-31 and calibrated up to 2025-08-31; every replay date is later."""
+    radar later saw. Every issue comes from a model fitted only on outcomes that
+    were observable before that issue date."""
     st = store()
     d = st.nearest_date(h, date)
     p = _replay_rows(h)
@@ -546,8 +554,7 @@ def replay(h: int = 7, date: str | None = None, u: User = Depends(require("read:
                 "missed_while_insufficient": "Water formed at a site the model sent to 'insufficient evidence'. A verification visit would still have found it.",
                 "missed_while_lower": "Water formed at a site the model placed at lower priority: a genuine miss.",
                 "outcome_source": "Radar-detected surface water only. Not larval presence."},
-            "leakage_note": "Model fitted on data to 2024-12-31, calibrated to 2025-08-31; replay issues start 2025-09-03. "
-                            "Inputs for each issue are dated on or before the issue date (leakage guard passed)."}
+            "leakage_note": LEAKAGE_NOTE}
 
 
 @api.get("/replay/export.csv", tags=["validation"])
@@ -581,6 +588,21 @@ def assurance(u: User = Depends(require("read:forecast"))):
     return a
 
 
+def _o1():
+    if not V3_CARD:
+        return ("Holdout PR-AUC 0.581 at 7 d vs base rate 0.037; 0.310 at 14 d vs 0.023. A persistence baseline scores higher at both horizons.",
+                "Beat the persistence baseline; field validation; a second station and site set")
+    e = {h: V3_CARD["evaluation"][h]["full"] for h in ("7", "14")}
+    txt = "; ".join(f"{h} d PR-AUC {e[h]['pr_auc']:.3f} vs persistence {e[h]['B1_pr_auc']:.3f}, alert precision "
+                    f"{e[h]['precision_threshold']['precision']:.2f}" for h in ("7", "14"))
+    return (f"v3 rolling out-of-sample forecasts {e['7']['date_from']} to {e['7']['date_to']}: {txt}. "
+            "The model now beats the persistence baseline at both horizons.",
+            "An untouched test window for v3; field validation; a second site set")
+
+
+O1_EVIDENCE, O1_OPEN = _o1()
+
+
 @api.get("/evidence", tags=["programme"])
 def evidence(u: User = Depends(require("read:forecast"))):
     ev = store().evidence()
@@ -605,9 +627,9 @@ def evidence(u: User = Depends(require("read:forecast"))):
                       "platform": deliv, "status": status, "modules": mods})
     objectives = [
         {"id": "O1", "paper": "Paper 1", "title": "Forecast habitat formation 7-14 days ahead from EO, meteorological and IoT data",
-         "status": "partial", "evidence": "Holdout PR-AUC 0.581 at 7 d vs base rate 0.037; 0.310 at 14 d vs 0.023. A persistence baseline scores higher at both horizons.",
+         "status": "partial", "evidence": O1_EVIDENCE,
          "modules": ["Habitat Forecast", "Replay & Validation", "Model Assurance"],
-         "open": "Beat the persistence baseline; field validation; a second station and site set"},
+         "open": O1_OPEN},
         {"id": "O2", "paper": "Papers 2 and 3", "title": "Convert risk maps into flight plans, confirm targets onboard, measure latency, energy and compute",
          "status": "awaiting_field", "evidence": "Planner, timing model (L <= d/v), energy model and log analytics built; measured values arrive with flight logs",
          "modules": ["Mission Planning", "Flight Operations"], "open": "Instrumented flights with Ampere Vision Rwanda airframe"},
