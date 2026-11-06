@@ -204,6 +204,8 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .fieldset > legend { padding: 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); }
 .check { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-2); }
 .check input { accent-color: var(--brand); }
+.field label.check { justify-content: flex-start; font-size: 12.5px; }
+.field .check input[type="checkbox"] { width: auto; height: auto; padding: 0; }
 .assume { font-size: 11px; color: var(--warn); display: flex; gap: 6px; align-items: flex-start; }
 .assume svg { width: 13px; height: 13px; flex: none; margin-top: 2px; }
 

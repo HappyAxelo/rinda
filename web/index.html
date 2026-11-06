@@ -11,6 +11,8 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="/css/app.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0f1a24">
 <script>
   try { const t = localStorage.getItem('rinda.theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
 </script>
@@ -64,6 +66,9 @@
         <span class="chip mode" id="modeChip" title="No numerical weather forecast feed is connected. Forecasts replay the archive exactly as they would have been issued."><i></i>Hindcast replay</span>
         <span class="chip" id="freshChip" hidden><i></i><span></span></span>
         <span class="offline" id="offlineChip" hidden>Offline</span>
+        <div class="seg" role="group" aria-label="Language / Ururimi" id="langSeg">
+          <button data-lang="en" aria-pressed="true" title="English">EN</button><button data-lang="rw" aria-pressed="false" title="Ikinyarwanda (draft translation)">RW</button>
+        </div>
         <div class="top-sep"></div>
         <span class="clock mono" id="clock" title="Kigali time (CAT, UTC+2)"></span>
         <a class="icon-btn bell" id="bellBtn" href="#/overview" aria-label="Open alerts"><svg viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg><span class="n" id="bellN" hidden></span></a>

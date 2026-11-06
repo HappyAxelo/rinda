@@ -65,6 +65,22 @@ ALTER TABLE missions ADD COLUMN approved_by INTEGER;
 ALTER TABLE missions ADD COLUMN approved_utc TEXT;
 ALTER TABLE missions ADD COLUMN demo INTEGER NOT NULL DEFAULT 0;
 """),
+    (5, "programme uptake: habitats, survey fields, outbox, user district", """
+CREATE TABLE IF NOT EXISTS habitats (
+  code TEXT PRIMARY KEY, lat REAL NOT NULL, lon REAL NOT NULL, habitat_type TEXT, permanence TEXT,
+  description TEXT, created_by INTEGER, created_utc TEXT, first_observation_id INTEGER,
+  demo INTEGER NOT NULL DEFAULT 0);
+ALTER TABLE observations ADD COLUMN habitat_permanence TEXT;
+ALTER TABLE observations ADD COLUMN distance_to_house_m REAL;
+ALTER TABLE observations ADD COLUMN sun_exposure TEXT;
+CREATE TABLE IF NOT EXISTS outbox (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, created_utc TEXT, kind TEXT NOT NULL, channel TEXT NOT NULL,
+  language TEXT NOT NULL, recipient_user_id INTEGER, recipient_label TEXT, body TEXT NOT NULL,
+  status TEXT NOT NULL, status_note TEXT, created_by INTEGER, ref TEXT, demo INTEGER NOT NULL DEFAULT 0);
+ALTER TABLE users ADD COLUMN district TEXT;
+ALTER TABLE users ADD COLUMN phone TEXT;
+ALTER TABLE users ADD COLUMN language TEXT NOT NULL DEFAULT 'en';
+"""),
 ]
 
 

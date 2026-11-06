@@ -18,7 +18,8 @@ export async function render(el, st) {
   <div class="grid g-2" style="margin-top:14px">
     ${card(`Users · ${users.length}`, table([
       { h: 'Name', f: (u) => `${esc(u.name)}${u.demo ? ' <span class="badge">DEMO</span>' : ''}` }, { h: 'Email', f: (u) => `<span class="mono">${esc(u.email)}</span>` },
-      { h: 'Role', f: (u) => `<select data-role="${u.id}" aria-label="Role for ${esc(u.name)}" ${u.id === st.user.id ? 'disabled' : ''}>${roles.map((r) => `<option value="${r.role}" ${r.role === u.role ? 'selected' : ''}>${r.label}</option>`).join('')}</select>` },
+      { h: 'Role', f: (u) => `<select data-role="${u.id}" aria-label="Role for ${esc(u.name)}" ${u.id === st.user.id ? 'disabled' : ''}>${roles.map((r) => `<option value="${r.role}" ${r.role === u.role ? 'selected' : ''}>${r.label}</option>`).join('')}</select><br><span class="hint">${esc(u.role_title || '')}</span>` },
+      { h: 'District · language', f: (u) => `${esc(u.district || '–')} · ${u.language === 'rw' ? 'Kinyarwanda' : 'English'}${u.phone ? '<br><span class="hint">phone on file</span>' : ''}` },
       { h: 'Last sign-in', f: (u) => (u.last_login_utc || '–').replace('T', ' ').replace('Z', '') },
       { h: 'Active', f: (u) => (u.id === st.user.id ? 'You' : `<label class="check"><input type="checkbox" data-active="${u.id}" ${u.active ? 'checked' : ''}> active</label>`) },
     ], users, { max: 380 }).html, { flush: true, tools: '<button class="btn sm primary" id="newUser">Add user</button>' })}
@@ -53,14 +54,17 @@ export async function render(el, st) {
     const d = modal('Add user', `<form id="nu" class="form cols-2">
       <div class="field"><label for="nuN">Full name</label><input id="nuN" required minlength="2"></div>
       <div class="field"><label for="nuE">Email</label><input id="nuE" type="email" required></div>
-      <div class="field"><label for="nuR">Role</label><select id="nuR">${roles.map((r) => `<option value="${r.role}">${r.label}</option>`).join('')}</select></div>
+      <div class="field"><label for="nuR">Role</label><select id="nuR">${roles.map((r) => `<option value="${r.role}">${r.label} · ${esc(r.title || '')}</option>`).join('')}</select><span class="hint">Job titles are a proposed mapping to be confirmed with RBC.</span></div>
       <div class="field"><label for="nuO">Organisation</label><input id="nuO" placeholder="e.g. RBC, Gasabo DH"></div>
+      <div class="field"><label for="nuDi">District</label><input id="nuDi" maxlength="80" placeholder="e.g. Gasabo"></div>
+      <div class="field"><label for="nuPh">Phone for SMS / WhatsApp <span class="u">optional</span></label><input id="nuPh" type="tel" maxlength="20" placeholder="+250 7xx xxx xxx"><span class="hint">Used only to address messages in the outbox; shown masked.</span></div>
+      <div class="field"><label for="nuL">Language</label><select id="nuL"><option value="en">English</option><option value="rw">Kinyarwanda (draft)</option></select></div>
       <div class="field" style="grid-column:1/-1"><label for="nuP">Initial password</label><input id="nuP" type="password" autocomplete="new-password" required minlength="12"><span class="hint">Share it through a separate channel; the user should change it at first sign-in.</span></div>
       <div class="actions" style="grid-column:1/-1"><button class="btn primary">Create</button></div></form>`);
     d.querySelector('#nu').addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
-        await api.post('/api/admin/users', { name: d.querySelector('#nuN').value, email: d.querySelector('#nuE').value, role: d.querySelector('#nuR').value, organisation: d.querySelector('#nuO').value, password: d.querySelector('#nuP').value });
+        await api.post('/api/admin/users', { name: d.querySelector('#nuN').value, email: d.querySelector('#nuE').value, role: d.querySelector('#nuR').value, organisation: d.querySelector('#nuO').value, district: d.querySelector('#nuDi').value, phone: d.querySelector('#nuPh').value, language: d.querySelector('#nuL').value, password: d.querySelector('#nuP').value });
         toast('User created'); d.close(); render(el, st);
       } catch (er) { toast(er.message, true); }
     });

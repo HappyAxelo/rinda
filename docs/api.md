@@ -31,13 +31,14 @@ Generated from the OpenAPI schema by `scripts/gen_api_docs.py`. Interactive vers
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
-| GET | `/api/v1/alerts` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | List Alerts |
+| GET | `/api/v1/alerts` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | List Alerts |
 | POST | `/api/v1/alerts/{aid}` | supervisor, admin (`act:alert`) | Act Alert |
 | GET | `/api/v1/feedback` | admin (`admin:users`) | List Feedback |
 | POST | `/api/v1/feedback` | public | Feedback |
 | GET | `/api/v1/field/assignees` | supervisor, admin (`assign:task`) | People a supervisor can assign inspections to (names and roles only). |
 | GET | `/api/v1/field/export/{kind}.csv` | supervisor, admin (`export:field`) | Export |
 | GET | `/api/v1/field/summary` | public | Counts only: safe for every role, including public viewers. |
+| GET | `/api/v1/habitats` | field_officer, analyst, supervisor, admin (`read:field`) | Habitats registered in the field, away from the radar monitoring points. |
 | GET | `/api/v1/interventions` | field_officer, analyst, supervisor, admin (`read:field`) | List Interventions |
 | POST | `/api/v1/interventions` | supervisor, admin (`authorize:intervention`) | Authorise |
 | POST | `/api/v1/interventions/{iid}/followup` | supervisor, admin (`review:observation`) | Followup |
@@ -53,10 +54,10 @@ Generated from the OpenAPI schema by `scripts/gen_api_docs.py`. Interactive vers
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
-| GET | `/api/v1/assurance` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Assurance |
-| GET | `/api/v1/replay` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | What the forecast said on an issue date, which inputs it had, and what the |
+| GET | `/api/v1/assurance` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Assurance |
+| GET | `/api/v1/replay` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | What the forecast said on an issue date, which inputs it had, and what the |
 | GET | `/api/v1/replay/export.csv` | analyst, supervisor, admin (`export:validation`) | Replay Export |
-| GET | `/api/v1/verification` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Verification |
+| GET | `/api/v1/verification` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Verification |
 
 ### Auth
 
@@ -66,39 +67,47 @@ Generated from the OpenAPI schema by `scripts/gen_api_docs.py`. Interactive vers
 | POST | `/api/v1/auth/login` | public | Auth Login |
 | POST | `/api/v1/auth/logout` | public | Auth Logout |
 | GET | `/api/v1/auth/me` | public | Auth Me |
-| POST | `/api/v1/auth/password` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Auth Password |
+| POST | `/api/v1/auth/password` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Auth Password |
+| POST | `/api/v1/auth/preferences` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Interface and message language for the signed-in account. |
 
 ### Forecast
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
-| GET | `/api/v1/bootstrap` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Bootstrap |
-| GET | `/api/v1/explain` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Explain |
-| GET | `/api/v1/forecast` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Forecast |
-| GET | `/api/v1/forecast/meta` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Forecast Meta |
-| GET | `/api/v1/scenario` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Scenario |
+| GET | `/api/v1/bootstrap` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Bootstrap |
+| GET | `/api/v1/explain` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Explain |
+| GET | `/api/v1/forecast` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Forecast |
+| GET | `/api/v1/forecast/meta` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Forecast Meta |
+| GET | `/api/v1/scenario` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Scenario |
 | POST | `/api/v1/score` | analyst, supervisor, admin (`score:batch`) | Score |
-| GET | `/api/v1/score/template` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Score Template |
-| GET | `/api/v1/site/{site_id}` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Site |
+| GET | `/api/v1/score/template` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Score Template |
+| GET | `/api/v1/site/{site_id}` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Site |
 
 ### Programme
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
-| GET | `/api/v1/bulletin` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Bulletin |
-| POST | `/api/v1/economics` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Economics |
-| GET | `/api/v1/evidence` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Evidence |
-| GET | `/api/v1/governance` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Governance |
+| GET | `/api/v1/bulletin` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Bulletin |
+| POST | `/api/v1/economics` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Economics |
+| GET | `/api/v1/evidence` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Evidence |
+| GET | `/api/v1/governance` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Governance |
+| GET | `/api/v1/me/indicators` | analyst, supervisor, programme_manager, admin (`read:me`) | Monitoring-and-evaluation indicators grouped by RE-AIM dimension, computed only from records. |
+| GET | `/api/v1/messages` | supervisor, admin (`read:outbox`) | List Messages |
+| POST | `/api/v1/messages/digest` | supervisor, admin (`write:outbox`) | Weekly digest for every active supervisor and programme manager, in each person's language. |
+| POST | `/api/v1/messages/{mid}` | supervisor, admin (`write:outbox`) | Mark Message |
+| GET | `/api/v1/reports/dhis2` | supervisor, programme_manager, admin (`export:report`) | Weekly counts as a DHIS2 dataValueSet. Never pushed to a server: the file is for the HMIS team to check |
+| GET | `/api/v1/reports/weekly` | supervisor, programme_manager, admin (`export:report`) | Weekly Json |
+| GET | `/api/v1/reports/weekly.html` | supervisor, programme_manager, admin (`export:report`) | Weekly Html |
 
 ### Flight Logs
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
-| GET | `/api/v1/flightlogs` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Flightlog List |
+| GET | `/api/v1/flightlogs` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Flightlog List |
 | POST | `/api/v1/flightlogs` | analyst, supervisor, admin (`upload:flightlog`) | Flightlog Upload |
-| GET | `/api/v1/flightlogs/analysis` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Flightlog Analysis |
-| GET | `/api/v1/flightlogs/schema` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Flightlog Schema |
-| GET | `/api/v1/flightlogs/template` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Flightlog Template |
+| GET | `/api/v1/flightlogs/analysis` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Flightlog Analysis |
+| GET | `/api/v1/flightlogs/schema` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Flightlog Schema |
+| GET | `/api/v1/flightlogs/template` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Flightlog Template |
 | DELETE | `/api/v1/flightlogs/{log_id}` | supervisor, admin (`delete:flightlog`) | Flightlog Delete |
 | POST | `/api/v1/missions/{mid}/synthetic-log` | analyst, supervisor, admin (`upload:flightlog`) | Flightlog Synthetic |
 
@@ -114,21 +123,21 @@ Generated from the OpenAPI schema by `scripts/gen_api_docs.py`. Interactive vers
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
-| GET | `/api/v1/meteo` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Meteo |
-| GET | `/api/v1/meteo/summary` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Meteo Summary |
-| GET | `/api/v1/telemetry` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Telemetry |
+| GET | `/api/v1/meteo` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Meteo |
+| GET | `/api/v1/meteo/summary` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Meteo Summary |
+| GET | `/api/v1/telemetry` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Telemetry |
 | POST | `/api/v1/telemetry/{station_id}` | public | Telemetry Ingest |
 
 ### Missions
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
-| GET | `/api/v1/missions` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Missions |
-| POST | `/api/v1/missions/plan` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Planning preview is open to every reader; committing needs plan:mission. |
-| GET | `/api/v1/missions/{mid}` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Mission |
+| GET | `/api/v1/missions` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Missions |
+| POST | `/api/v1/missions/plan` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Planning preview is open to every reader; committing needs plan:mission. |
+| GET | `/api/v1/missions/{mid}` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Mission |
 | GET | `/api/v1/missions/{mid}/export` | analyst, supervisor, admin (`plan:mission`) | Mission Export |
 | POST | `/api/v1/missions/{mid}/status` | analyst, supervisor, admin (`plan:mission`) | Mission Status |
-| POST | `/api/v1/timing` | viewer, field_officer, analyst, supervisor, admin (`read:forecast`) | Timing |
+| POST | `/api/v1/timing` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Timing |
 
 ## Examples
 

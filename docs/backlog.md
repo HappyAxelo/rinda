@@ -1,6 +1,6 @@
 # Prioritised backlog
 
-Ordered by risk reduction and user value. Status as of 2026-10-12.
+Ordered by risk reduction and user value. Status as of 2026-11-06.
 
 | ID | Item | Phase | Status |
 |---|---|---|---|
@@ -27,9 +27,16 @@ Ordered by risk reduction and user value. Status as of 2026-10-12.
 | B-08 | External uptime and freshness alerting (e.g. monitor on `/api/v1/ready`) | 4 | Open |
 | B-09 | Browser end-to-end tests (Playwright) for the twelve journeys | 4 | Open; journeys currently covered at API level plus manual browser checks |
 | B-10 | Formal accessibility audit (WCAG 2.1 AA) and usability sessions with district staff | 4 | Open |
-| B-11 | Kinyarwanda localisation after terminology sessions | 4 | Open |
-| B-12 | Email/SMS notification of assigned tasks (only if users ask for it) | 3 | Not started by design |
-| B-13 | DHIS2 / HMIS integration (only after partner specifies it) | 5 | Not started by design |
+| B-11 | Kinyarwanda localisation after terminology sessions | 4 | **Partial** (2026-11-06): EN/RW switch; draft strings for navigation and field screens; weekly report and messages. Needs review sessions and the remaining pages |
+| B-12 | Email/SMS notification of assigned tasks (only if users ask for it) | 3 | **Partial**: outbox drafts task notices and weekly digests; no provider connected |
+| B-13 | DHIS2 / HMIS integration (only after partner specifies it) | 5 | **Partial**: weekly dataValueSet export; UIDs pending from RBC HMIS; no push |
+| B-17 | RE-AIM monitoring indicators from operational records | 5 | **Done** (2026-11-06) |
+| B-18 | Field-registered habitats, larval density, habitat attributes | 3 | **Done** (2026-11-06) |
+| B-19 | Offline app shell (service worker) | 3 | **Done** (2026-11-06); maps still need a connection (see B-14) |
+| B-20 | Programme-manager role and proposed RBC job titles | 4 | **Done**; titles to confirm with RBC |
+| B-21 | Cell / Village names for points and habitats | 3 | Open; needs NISR administrative boundaries |
+| B-22 | Single sign-on with an RBC identity provider | 4 | Open |
+| B-23 | SMS/WhatsApp provider adapter | 3 | Open; needs an approved provider and contract |
 | B-14 | Self-hosted basemap tiles for offline and licence certainty | 4 | Open |
 | B-15 | Remove `'unsafe-inline'` from CSP (move boot and print scripts to files) | 4 | Open |
 | B-16 | Aggregate field-outcome analysis (forecast vs verified larvae) once data exist | 5 | Open, depends on B-05 |

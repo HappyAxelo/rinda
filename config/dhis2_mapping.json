@@ -1,0 +1,23 @@
+{
+  "_doc": "Mapping from RINDA weekly larval source management indicators to DHIS2 / HMIS data elements. Every UID is a placeholder until the RBC HMIS team supplies the data set, data elements and organisation units. While any UID is UNMAPPED, exports are marked mapping_pending and a DHIS2 import will reject them, which is intended.",
+  "version": "2026-11-06.1",
+  "status": "PENDING - data set, data element and organisation unit UIDs to be supplied by the RBC HMIS team",
+  "period_type": "Weekly",
+  "dataSet": "UNMAPPED",
+  "orgUnits": {
+    "Gikomero Sector pilot": "UNMAPPED"
+  },
+  "categoryOptionCombo": "UNMAPPED",
+  "dataElements": {
+    "lsm_inspections_completed": {"uid": "UNMAPPED", "name": "LSM - breeding-site inspections completed"},
+    "lsm_sites_inspected": {"uid": "UNMAPPED", "name": "LSM - distinct sites or habitats inspected"},
+    "lsm_sites_with_water": {"uid": "UNMAPPED", "name": "LSM - inspected sites with standing water"},
+    "lsm_sites_sampled": {"uid": "UNMAPPED", "name": "LSM - sites sampled by dipping"},
+    "lsm_sites_larvae_positive": {"uid": "UNMAPPED", "name": "LSM - sites positive for mosquito larvae"},
+    "lsm_sites_anopheles_positive": {"uid": "UNMAPPED", "name": "LSM - sites positive for Anopheles larvae"},
+    "lsm_dips_total": {"uid": "UNMAPPED", "name": "LSM - dips taken"},
+    "lsm_new_habitats": {"uid": "UNMAPPED", "name": "LSM - new habitats registered"},
+    "lsm_sites_treated": {"uid": "UNMAPPED", "name": "LSM - sites treated (larviciding or environmental management)"},
+    "lsm_followups_larvae_absent_or_reduced": {"uid": "UNMAPPED", "name": "LSM - follow-ups with larvae absent or reduced"}
+  }
+}

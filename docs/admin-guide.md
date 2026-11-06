@@ -12,13 +12,17 @@
 
 **Administration → Users → Add user.** Choose the narrowest role that lets the person do their job:
 
-| Role | Give to |
-|---|---|
-| Viewer | Partners who only need to read forecasts and reports |
-| Field officer | Staff doing inspections |
-| Technical analyst | Staff validating the model or planning missions |
-| Supervisor | District vector-control leads who assign, review and authorise |
-| Institution administrator | One or two people managing accounts and backups |
+| Role | Proposed RBC job (to confirm with RBC) | Give to |
+|---|---|---|
+| Viewer | Partner or evaluator | People who only need to read forecasts and reports |
+| Field officer | Environmental Health Officer / larval survey technician | Staff doing inspections |
+| Technical analyst | Entomologist or data manager | Staff validating the model or planning missions |
+| Supervisor | District Vector Control Officer | District leads who assign, review and authorise |
+| Programme manager | National Malaria Programme Manager (RBC) | National staff who need indicators and weekly reports, not record-level field data |
+| Institution administrator | System administrator (RBC ICT) | One or two people managing accounts and backups |
+
+Set each person's **district**, **language** (English or draft Kinyarwanda) and, if they agree, a **phone number**
+for SMS or WhatsApp notices. Phone numbers are visible only to administrators and appear masked in the outbox.
 
 Deactivating an account signs it out everywhere immediately. You cannot deactivate or demote yourself.
 
@@ -28,6 +32,14 @@ Deactivating an account signs it out everywhere immediately. You cannot deactiva
 quality checks. Change it only after written agreement with the programme, through a reviewed commit; update
 `version` and `approved_by`. The current file is **pending approval**, and the Moderate category is disabled until
 a threshold is agreed.
+
+## DHIS2 mapping and messaging
+
+- `config/dhis2_mapping.json` maps RINDA's ten weekly counts to DHIS2 data elements. Every UID starts as
+  `UNMAPPED`. Fill them in with the RBC HMIS team through a reviewed commit, and test-import on a DHIS2 training
+  instance before real use.
+- The outbox sends nothing until an SMS or WhatsApp provider is approved and connected (`RINDA_SMS_PROVIDER`;
+  provider code is not written yet). Until then, staff send messages by hand and mark them as sent.
 
 ## Monitoring
 

@@ -49,6 +49,20 @@ queued. Sending the same record twice never creates a duplicate.
 
 Records far from the point, without GPS, or with poor GPS accuracy go to review with a flag.
 
+**A habitat that is not one of the monitoring points.** Tick **New habitat, not a monitoring point**, tap **Use device
+GPS** at the water's edge and describe the place. RINDA registers it with its own code (H0001, H0002, ...). From then
+on it can be inspected again, reviewed, treated and followed up like any point; type its code in the point field.
+Habitats carry no forecast.
+
+Record **habitat permanence**, **sun exposure** and **distance to the nearest house** when you can. RINDA works out
+**larvae per dip** (larvae counted ÷ dips) and shows it as you type.
+
+**Working without a connection.** Open RINDA once while connected and sign in. After that, the console and your
+inspection list open on the phone without signal. Sign out on a shared phone: this deletes the saved copy.
+
+**Language.** **EN / RW** in the top bar switches the navigation and field screens to Kinyarwanda. The Kinyarwanda is
+a draft: report unclear words through Help & Glossary → Feedback.
+
 ## 5. Supervisors: review and authorise
 
 **Review queue**: open a record, then **Verify**, **Return for correction** or **Reject** (a reason is required for
@@ -69,6 +83,20 @@ and what the next radar pass found: hits, false alarms, points flagged as insuff
 **Reports & bulletins** produce a one-page A4 bulletin for any issue, stamped with its status. Supervisors can export
 tasks, observations and interventions as CSV from **Field surveillance**; demonstration records are labelled.
 
-## 8. Help
+## 8. Monitoring, weekly report and messages (supervisors, programme managers)
+
+**Monitoring & Reporting → Indicators** shows how RINDA is used, by RE-AIM dimension. Every figure is counted from
+records. "No data" means there are no records yet, not zero. "Few records" warns that a share rests on fewer than 20
+records. The page does not show malaria cases.
+
+**Weekly report & DHIS2**: choose the epidemiological week. **Report** opens a printable A4 summary in English or
+draft Kinyarwanda, with signature lines. The DHIS2 CSV or JSON is for the HMIS team. It stays marked *mapping
+pending* until RBC supplies the DHIS2 identifiers, and RINDA never sends it anywhere itself.
+
+**Messages** (supervisors): assigning an inspection prepares an SMS notice to the officer in their language.
+**Prepare weekly digest** writes a short summary for each supervisor and programme manager. No SMS or WhatsApp
+service is connected, so copy the text, send it from the programme phone and press **Mark sent**.
+
+## 9. Help
 
 **Help & glossary** has a searchable glossary, this guide in short form, the introduction tour and a feedback form.

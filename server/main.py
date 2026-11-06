@@ -12,6 +12,7 @@ import io
 import json
 import logging
 import math
+import mimetypes
 import os
 import time
 import traceback
@@ -33,6 +34,7 @@ import db
 import field as F
 import ops
 import planner as P
+import programme
 import rules as R
 import security as S
 from bulletin import render_bulletin
@@ -41,6 +43,8 @@ from engine import CFG, ENGINE, ENGINE_VERSION, ROOT, RUN_SUMMARY, V3_CARD, VAR
 from security import User, current_user, require
 
 WEB = ROOT / "web"
+mimetypes.add_type("application/manifest+json", ".webmanifest")
+mimetypes.add_type("text/javascript", ".js")
 STATION_KEYS_FILE = VAR / "station_keys.json"
 MAX_UPLOAD = 20 * 1024 * 1024
 STARTED = time.time()
@@ -134,7 +138,7 @@ async def observe(request: Request, call_next):
         resp.headers["Content-Security-Policy"] = CSP
     if S.flag("RINDA_SECURE_COOKIES"):
         resp.headers["Strict-Transport-Security"] = "max-age=31536000"
-    if request.url.path.startswith(("/js/", "/css/")):
+    if request.url.path.startswith(("/js/", "/css/")) or request.url.path in ("/sw.js", "/manifest.webmanifest"):
         resp.headers["Cache-Control"] = "no-cache"
     elif request.url.path.startswith("/api/"):
         resp.headers.setdefault("Cache-Control", "no-store")
@@ -256,7 +260,21 @@ def auth_logout(request: Request, response: Response):
 @api.get("/auth/me", tags=["auth"])
 def auth_me(u: User = Depends(current_user)):
     return u.public() | {"demo_enabled": S.DEMO, "public_read": S.PUBLIC_READ,
-                         "roles": [{"role": r, "label": S.ROLE_LABEL[r]} for r in S.ROLES]}
+                         "roles": [{"role": r, "label": S.ROLE_LABEL[r], "title": S.ROLE_TITLE[r]} for r in S.ROLES]}
+
+
+class PrefsIn(BaseModel):
+    language: str = Field(pattern=r"^(en|rw)$")
+
+
+@api.post("/auth/preferences", tags=["auth"])
+def auth_preferences(b: PrefsIn, u: User = Depends(require("read:forecast"))):
+    """Interface and message language for the signed-in account."""
+    if u.id is None:
+        raise HTTPException(401, "Sign in to save preferences.")
+    with db.tx() as c:
+        c.execute("UPDATE users SET language=? WHERE id=?", (b.language, u.id))
+    return {"ok": True, "language": b.language}
 
 
 class PasswordIn(BaseModel):
@@ -286,6 +304,9 @@ class UserIn(BaseModel):
     name: str = Field(min_length=2, max_length=120)
     role: str
     organisation: str = Field(default="", max_length=200)
+    district: str = Field(default="", max_length=80)
+    phone: str = Field(default="", max_length=20, pattern=r"^(\+?[0-9 ]{7,20})?$")
+    language: str = Field(default="en", pattern=r"^(en|rw)$")
     password: str = Field(max_length=200)
 
 
@@ -301,7 +322,8 @@ def admin_create_user(b: UserIn, u: User = Depends(require("admin:users"))):
     if (p := S.password_problem(b.password)):
         raise HTTPException(422, p)
     try:
-        uid = S.create_user(b.email, b.name, b.role, b.password, b.organisation, demo=u.demo)
+        uid = S.create_user(b.email, b.name, b.role, b.password, b.organisation, demo=u.demo,
+                            district=b.district or None, phone=b.phone or None, language=b.language)
     except Exception:
         raise HTTPException(409, "A user with that email already exists.")
     ops.audit(u.email, "user.create", f"{b.email} role={b.role}")
@@ -311,6 +333,9 @@ def admin_create_user(b: UserIn, u: User = Depends(require("admin:users"))):
 class UserPatch(BaseModel):
     role: str | None = None
     active: bool | None = None
+    district: str | None = Field(default=None, max_length=80)
+    phone: str | None = Field(default=None, max_length=20, pattern=r"^(\+?[0-9 ]{7,20})?$")
+    language: str | None = Field(default=None, pattern=r"^(en|rw)$")
 
 
 @api.patch("/admin/users/{uid}", tags=["admin"])
@@ -322,6 +347,9 @@ def admin_update_user(uid: int, b: UserPatch, u: User = Depends(require("admin:u
             if b.role not in S.ROLES:
                 raise HTTPException(422, "Unknown role.")
             c.execute("UPDATE users SET role=? WHERE id=?", (b.role, uid))
+        for col in ("district", "phone", "language"):
+            if getattr(b, col) is not None:
+                c.execute(f"UPDATE users SET {col}=? WHERE id=?", (getattr(b, col) or None, uid))
         if b.active is not None:
             c.execute("UPDATE users SET active=? WHERE id=?", (int(b.active), uid))
             if not b.active:
@@ -957,6 +985,7 @@ def bulletin(h: int = 7, date: str | None = None, u: User = Depends(require("rea
 
 # ------------------------------------------------------------------ mount
 api.include_router(F.router)
+api.include_router(programme.router)
 app.include_router(api, prefix="/api/v1")
 app.include_router(api, prefix="/api", include_in_schema=False)
 
