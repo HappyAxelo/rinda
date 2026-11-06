@@ -21,7 +21,9 @@ from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from dataclasses import asdict, fields
 
-import numpy as np
+os.environ.setdefault("ARROW_DEFAULT_MEMORY_POOL", "system")  # see engine.py; before pandas loads pyarrow
+
+import numpy as np  # noqa: E402
 import pandas as pd
 from fastapi import APIRouter, Body, Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError

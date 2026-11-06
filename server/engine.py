@@ -17,7 +17,12 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import joblib
+# Arrow (used by pandas for parquet and, from pandas 3, for text columns) keeps
+# freed memory in its own pool. The system allocator hands it back, which keeps
+# the server inside the 512 MB hosting plan. Must be set before pyarrow loads.
+os.environ.setdefault("ARROW_DEFAULT_MEMORY_POOL", "system")
+
+import joblib  # noqa: E402
 import numpy as np
 import pandas as pd
 import xgboost as xgb
@@ -207,14 +212,26 @@ class Engine:
                 for h in HORIZONS:
                     om = joblib.load(V3 / f"operational_h{h}.joblib")
                     self.models[h] = V3HorizonModel(h, om, V3_CARD)
-                    tbl = pd.read_parquet(V3 / f"window_h{h}.parquet")
-                    tbl["date"] = pd.to_datetime(tbl["date"])
-                    self.tables[h] = tbl
+                    self.tables[h] = self._v3_window(h, self.models[h].fingerprint)
                     self._say(f"h{h}: v3 model {self.models[h].fingerprint} trained to {om.trained_to}, "
                               f"{len(om.cols)} features")
                 self.status = "ready"
             return
         self._load_v1()
+
+    @staticmethod
+    def _v3_window(h: int, fingerprint: str) -> pd.DataFrame:
+        """The v3 model inputs, cached as a pickle beside the models. Reading the
+        parquet costs about twice its size in transient Arrow memory; the pickle
+        loads with none. site_id becomes a category (600 values, no Arrow strings)."""
+        cache = VAR / "models" / f"window_v3_h{h}_{fingerprint}.pkl"
+        if cache.exists():
+            return pd.read_pickle(cache)
+        tbl = pd.read_parquet(V3 / f"window_h{h}.parquet")
+        tbl["date"] = pd.to_datetime(tbl["date"])
+        tbl["site_id"] = tbl["site_id"].astype(str).astype("category")
+        tbl.to_pickle(cache)
+        return tbl
 
     def _load_v1(self) -> None:
         """Fit (once) on the full table, but keep only the operational window in
