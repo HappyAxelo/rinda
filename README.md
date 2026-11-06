@@ -51,6 +51,7 @@ Tests: `pip install pytest httpx && pytest -q tests`.
 | `RINDA_PUBLIC_READ` | 1 | Anonymous read access to forecasts |
 | `RINDA_DEMO` | 0 | Demonstration sign-in per role |
 | `RINDA_SECURE_COOKIES` | 0 | Set 1 behind HTTPS |
+| `RINDA_SMS_PROVIDER` | none | Name of a connected SMS/WhatsApp provider. Unset: the outbox only drafts messages |
 | `PORT` | 7860 (Docker) | Listening port. |
 
 ## Deployment
@@ -74,8 +75,8 @@ untouched test of v3 yet) and the data archive ends on 2026-09-30, so every fore
 
 ## Roles and sign-in
 
-Viewer, Field officer, Technical analyst, Supervisor and Institution administrator; permissions are enforced on the
-server (`server/security.py`). With `RINDA_PUBLIC_READ=1` anyone can read forecasts and validation without an account.
+Viewer, Field officer, Technical analyst, Supervisor, Programme manager and Institution administrator, each with a
+proposed RBC job title (to confirm with RBC); permissions are enforced on the server (`server/security.py`). With `RINDA_PUBLIC_READ=1` anyone can read forecasts and validation without an account.
 With `RINDA_DEMO=1` (the hosted demonstration) a visitor can sign in as any role without a password; everything such
 an account creates is labelled DEMO. Operational deployments set `RINDA_DEMO=0` and create accounts under Administration.
 
@@ -91,6 +92,8 @@ an account creates is labelled DEMO. Operational deployments set `RINDA_DEMO=0` 
 | `docs/deployment.md` | Configuration, health, deploy, rollback, backup and restore |
 | `docs/user-guide.md`, `docs/admin-guide.md` | Operating instructions |
 | `docs/backlog.md`, `docs/changes-2026-10-12.md`, `docs/readiness-assessment.md` | Plan, change record, readiness |
+| `docs/changes-2026-11-06.md` | Programme uptake: M&E, weekly report, DHIS2, habitats, offline shell, Kinyarwanda draft, roles, outbox |
+| `docs/hosting-rbc.md`, `docs/data-sharing-agreement-template.md`, `docs/dpia-template.md` | Drafts for RBC ICT, legal and data-protection review |
 
 ## Modules and the research they answer
 
@@ -105,6 +108,7 @@ an account creates is labelled DEMO. Operational deployments set `RINDA_DEMO=0` 
 | Field Network | Weather station record with humidity gate; ESP32 node registry, uplink contract, packet delivery ratio, bill of materials | RQ-D |
 | Impact & Economics | Manual LSM vs two-pass drone vs forecast-guided: cost, response time against the aquatic window, larvicide; national scale-up planner; outcome slots for the trial | O3 |
 | Bulletins | Printable A4 bulletin per issue with map, coordinates, sorties, reliability statement and sign-off | O3 |
+| Monitoring & Reporting | RE-AIM indicators counted from records, weekly LSM report (EN / draft RW), DHIS2 dataValueSet export, SMS/WhatsApp outbox (nothing sent automatically) | O3, adoption conditions |
 | Programme Evidence | The review's 11-step evidence chain (140 studies) with what the platform delivers at each step; objectives and RQ status | Review gap |
 | Data & Governance | Source registry, claim control, data audit, model registry, append-only audit trail | — |
 

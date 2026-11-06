@@ -7,13 +7,17 @@ Rules enforced here, not only in the interface:
   * a missing observation is never a negative finding: "not_sampled" is distinct
     from "no";
   * reviewers cannot verify their own observations;
-  * resubmitting the same client_uuid (offline sync) returns the stored record.
+  * resubmitting the same client_uuid (offline sync) returns the stored record;
+  * habitats found away from the 600 radar points are registered with their own
+    code (H0001, ...) from the officer's GPS, so they can be reviewed, treated and
+    followed up like any monitoring point. They carry no forecast.
 """
 from __future__ import annotations
 
 import io
 import math
 from datetime import date, datetime, timedelta, timezone
+from types import SimpleNamespace
 from typing import Literal
 
 import pandas as pd
@@ -22,6 +26,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field, field_validator
 
 import ops
+import programme
 from data import haversine, store
 from db import now, tx
 from rules import alerts_for, category, rules
@@ -35,6 +40,8 @@ HABITATS = ["rice_paddy", "marsh_swamp", "pond", "puddle", "ditch_drain", "borro
             "container", "other"]
 SPECIES = ["an_gambiae_sl", "an_arabiensis", "an_funestus", "an_other", "culicine", "not_identified"]
 STAGES = ["early_instar", "late_instar"]
+PERMANENCE = ["permanent", "semi_permanent", "temporary"]
+SUN = ["sunlit", "partly_shaded", "shaded"]
 
 
 def _demo(u: User) -> int:
@@ -42,6 +49,13 @@ def _demo(u: User) -> int:
 
 
 def _site(site_id: str):
+    """A radar monitoring point (G0001...) or a field-registered habitat (H0001...)."""
+    if site_id and site_id.startswith("H"):
+        with tx() as c:
+            h = c.execute("SELECT * FROM habitats WHERE code=?", (site_id,)).fetchone()
+        if not h:
+            raise HTTPException(404, f"Unknown habitat {site_id}.")
+        return SimpleNamespace(site_id=h["code"], latitude=h["lat"], longitude=h["lon"], habitat=True)
     s = store().sites
     r = s[s.site_id == site_id]
     if r.empty:
@@ -84,7 +98,8 @@ def create_task(t: TaskIn, u: User = Depends(require("assign:task"))):
             c.execute("INSERT OR REPLACE INTO alert_states VALUES (?,?,?,?,?)",
                       (t.alert_id, "actioned", u.id, now(), f"inspection task T{tid}"))
     ops.audit(u.email, "task.create", f"T{tid} site={t.site_id} assignee={t.assignee_id}")
-    return {"id": tid}
+    mid = programme.draft_task_notice(tid, u)
+    return {"id": tid, "message_id": mid}
 
 
 @router.get("/field/assignees")
@@ -142,7 +157,9 @@ def list_tasks(status: str | None = None, mine: bool = False, u: User = Depends(
 class ObservationIn(BaseModel):
     client_uuid: str = Field(min_length=8, max_length=64)
     task_id: int | None = None
-    site_id: str
+    site_id: str | None = Field(default=None, max_length=16)
+    new_habitat: bool = False
+    habitat_description: str = Field(default="", max_length=300)
     lat: float | None = Field(default=None, ge=-90, le=90)
     lon: float | None = Field(default=None, ge=-180, le=180)
     gps_accuracy_m: float | None = Field(default=None, ge=0, le=10_000)
@@ -159,6 +176,9 @@ class ObservationIn(BaseModel):
     pupae_count: int | None = Field(default=None, ge=0, le=100_000)
     water_depth_cm: float | None = Field(default=None, ge=0, le=500)
     vegetation_cover_pct: float | None = Field(default=None, ge=0, le=100)
+    habitat_permanence: Literal["permanent", "semi_permanent", "temporary"] | None = None
+    sun_exposure: Literal["sunlit", "partly_shaded", "shaded"] | None = None
+    distance_to_house_m: float | None = Field(default=None, ge=0, le=100_000)
     notes: str = Field(default="", max_length=2000)
 
 
@@ -192,6 +212,8 @@ def _quality(o: ObservationIn, site) -> tuple[list[str], list[str]]:
         errors.append("A pupal count above zero needs pupae_present = yes.")
     if o.lat is None or o.lon is None:
         flags.append("no_gps")
+    elif o.new_habitat:
+        pass  # the habitat is registered at this very position
     else:
         d = float(haversine(o.lat, o.lon, site.latitude, site.longitude))
         if d > q["max_distance_from_site_m"]:
@@ -209,12 +231,31 @@ def create_observation(o: ObservationIn, u: User = Depends(require("write:observ
         dup = c.execute("SELECT id, status FROM observations WHERE client_uuid=?", (o.client_uuid,)).fetchone()
     if dup:  # offline client resubmitting: idempotent
         return {"id": dup["id"], "status": dup["status"], "duplicate": True}
-    site = _site(o.site_id)
+    if o.new_habitat:
+        if o.lat is None or o.lon is None:
+            raise HTTPException(422, "A new habitat needs a GPS position: use the device GPS at the water edge.")
+        if o.task_id:
+            raise HTTPException(422, "A new habitat cannot complete a task for another point; leave the task number empty.")
+        site = SimpleNamespace(site_id=None, latitude=o.lat, longitude=o.lon, habitat=True)
+    else:
+        if not o.site_id:
+            raise HTTPException(422, "Give a monitoring point or habitat code, or mark the record as a new habitat.")
+        site = _site(o.site_id)
     errors, flags = _quality(o, site)
     if errors:
         raise HTTPException(422, " ".join(errors))
+    if o.new_habitat:
+        flags.append("new_habitat")
     status = "needs_review" if flags else "submitted"
     with tx() as c:
+        if o.new_habitat:
+            n = c.execute("SELECT COUNT(*) FROM habitats").fetchone()[0]
+            code = f"H{n + 1:04d}"
+            c.execute("INSERT INTO habitats (code, lat, lon, habitat_type, permanence, description, created_by, "
+                      "created_utc, demo) VALUES (?,?,?,?,?,?,?,?,?)",
+                      (code, o.lat, o.lon, o.habitat_type, o.habitat_permanence, o.habitat_description, u.id,
+                       now(), _demo(u)))
+            o.site_id = code
         if o.task_id:
             t = c.execute("SELECT * FROM tasks WHERE id=?", (o.task_id,)).fetchone()
             if not t or t["site_id"] != o.site_id:
@@ -223,17 +264,22 @@ def create_observation(o: ObservationIn, u: User = Depends(require("write:observ
             "INSERT INTO observations (client_uuid, task_id, site_id, lat, lon, gps_accuracy_m, observed_at, "
             "observer_id, water_present, habitat_type, larvae_present, dips, larvae_count, anopheles_present, "
             "species, stages, pupae_present, pupae_count, water_depth_cm, vegetation_cover_pct, notes, "
-            "quality_flags, status, created_utc, demo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "quality_flags, status, created_utc, demo, habitat_permanence, sun_exposure, distance_to_house_m) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (o.client_uuid, o.task_id, o.site_id, o.lat, o.lon, o.gps_accuracy_m, o.observed_at, u.id,
              o.water_present, o.habitat_type, o.larvae_present, o.dips, o.larvae_count, o.anopheles_present,
              ",".join(o.species), ",".join(o.stages), o.pupae_present, o.pupae_count, o.water_depth_cm,
-             o.vegetation_cover_pct, o.notes, ",".join(flags), status, now(), _demo(u)))
+             o.vegetation_cover_pct, o.notes, ",".join(flags), status, now(), _demo(u),
+             o.habitat_permanence, o.sun_exposure, o.distance_to_house_m))
         oid = cur.lastrowid
+        if o.new_habitat:
+            c.execute("UPDATE habitats SET first_observation_id=? WHERE code=?", (oid, o.site_id))
         if o.task_id:
             c.execute("UPDATE tasks SET status='completed', updated_utc=? WHERE id=? AND status IN ('assigned','in_progress')",
                       (now(), o.task_id))
     ops.audit(u.email, "observation.create", f"O{oid} site={o.site_id} status={status} flags={','.join(flags)}")
-    return {"id": oid, "status": status, "quality_flags": flags}
+    return {"id": oid, "status": status, "quality_flags": flags, "site_id": o.site_id,
+            "habitat_code": o.site_id if o.new_habitat else None}
 
 
 class ReviewIn(BaseModel):
@@ -267,6 +313,10 @@ def _obs_rows(where: str = "1=1", args: tuple = ()) -> list[dict]:
         r["species"] = [s for s in (r["species"] or "").split(",") if s]
         r["stages"] = [s for s in (r["stages"] or "").split(",") if s]
         r["quality_flags"] = [s for s in (r["quality_flags"] or "").split(",") if s]
+        # larval density as larval surveys report it: larvae per dip (derived, never stored)
+        r["larvae_per_dip"] = (round(r["larvae_count"] / r["dips"], 2)
+                               if r["dips"] and r["larvae_count"] is not None and r["larvae_present"] == "yes"
+                               else (0.0 if r["larvae_present"] == "no" else None))
     return rows
 
 
@@ -372,6 +422,15 @@ def list_interventions(u: User = Depends(require("read:field"))):
         r["authorized_by_name"] = names.get(r["authorized_by"])
         r["performed_by_name"] = names.get(r["performed_by"])
     return rows
+
+
+# ----------------------------------------------------------------- habitats
+@router.get("/habitats")
+def list_habitats(u: User = Depends(require("read:field"))):
+    """Habitats registered in the field, away from the radar monitoring points."""
+    with tx() as c:
+        return [dict(r) for r in c.execute("SELECT code, lat, lon, habitat_type, permanence, description, "
+                                           "created_utc, first_observation_id, demo FROM habitats ORDER BY code")]
 
 
 # ------------------------------------------------------------------ summary

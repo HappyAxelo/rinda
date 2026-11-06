@@ -22,7 +22,10 @@ RINDA keeps four concepts apart and never presents one as another:
 | Field officer | Own inspection list; record observations offline; record treatments performed | + field read, write observation, update own task, record intervention |
 | Technical analyst | Validate the model; plan missions; batch scoring; validation exports | + plan mission, upload flight log, score, export validation |
 | Supervisor | Assign inspections, review records, authorise interventions, approve missions, act on alerts | + assign, review, authorise, approve, act on alerts, export field, audit |
+| Programme manager (national) | Indicators across the area, weekly reports, DHIS2 export; no record-level field detail | read forecast, read M&E, export report, read alerts |
 | Institution administrator | Accounts, backups, system status | everything + admin |
+
+Proposed RBC job titles for each role are in `server/security.py` (`ROLE_TITLE`) and `docs/admin-guide.md`.
 
 Institutional buyer: a national malaria/vector-control programme (in Rwanda, RBC Malaria & NTD Division). Purchasing
 authority, budget line and procurement route are **not yet identified** and must be confirmed with the partner.
@@ -40,7 +43,8 @@ authority, budget line and procurement route are **not yet identified** and must
 | Intervention authorised | Only from a verified eligible observation, with protocol reference, by a supervisor | Done |
 | Intervention recorded | Quantity and time by the person treating | Done |
 | Follow-up | Later verified observation at the same site closes the intervention with an outcome | Done |
-| Outcome evaluated | Replay compares forecasts with radar; field outcomes per intervention | Partial: no aggregate field-outcome analysis yet |
+| Outcome evaluated | Replay compares forecasts with radar; field outcomes per intervention; RE-AIM indicators (Monitoring & Reporting) | Partial: indicators built; no malaria outcome measured |
+| Reported | Weekly LSM report (A4, EN / draft RW); DHIS2 dataValueSet file | Done; DHIS2 mapping pending from RBC HMIS |
 
 ## Questions the product must answer, and where
 

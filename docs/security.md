@@ -34,8 +34,13 @@
 
 ## Privacy
 
-- Personal data held: staff names, emails, roles, sign-in times; observer and reviewer IDs on records. No patient or
-  household data.
+- Personal data held: staff names, emails, roles, districts, optional phone numbers, language, sign-in times;
+  observer and reviewer IDs on records; recipients and text of outbox messages. No patient or household data.
+- Phone numbers are optional, visible only to administrators, masked in the outbox and never exported.
+- On field phones the service worker keeps the console files and the last answers for bootstrap, account, tasks,
+  habitats, alerts and observations. Signing out deletes the saved answers. A phone lost while signed in keeps them
+  until the session ends.
+- Drafts for institutional review: `docs/data-sharing-agreement-template.md` and `docs/dpia-template.md`.
 - Locations are of monitoring points and field observations, not of homes.
 - Before collecting real records, the institution must document the lawful basis (Rwanda Law No. 058/2021 on the
   protection of personal data and privacy), retention periods and access policy. Recommended starting retention:

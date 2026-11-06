@@ -1,6 +1,7 @@
 import { api, disposeAll, drawer, toast, icon, fmt, esc, newScope, modal, banner } from './ui.js';
 import { openSite } from './site.js';
 import { flushQueue, queued } from './offline.js';
+import { t, getLang, setLang } from './i18n.js';
 
 export const state = {
   boot: null, h: 7, date: null, user: null, meta: null,
@@ -23,6 +24,7 @@ const ROUTES = [
     ['network', 'Field Network', 'network'],
   ] },
   { group: 'Programme', items: [
+    ['programme', 'Monitoring & Reporting', 'clipboard', 'read:me'],
     ['impact', 'Impact & Economics', 'impact'],
     ['bulletins', 'Reports & Bulletins', 'bulletin'],
     ['evidence', 'Programme Evidence', 'alignment'],
@@ -39,15 +41,15 @@ const VIEWS = {
   network: () => import('./views/network.js'), impact: () => import('./views/impact.js'),
   bulletins: () => import('./views/bulletins.js'), evidence: () => import('./views/evidence.js'),
   governance: () => import('./views/governance.js'), admin: () => import('./views/admin.js'),
-  help: () => import('./views/help.js'),
+  help: () => import('./views/help.js'), programme: () => import('./views/programme.js'),
 };
-const ROLE_HOME = { viewer: 'overview', field_officer: 'field', analyst: 'replay', supervisor: 'overview', admin: 'admin' };
+const ROLE_HOME = { viewer: 'overview', field_officer: 'field', analyst: 'replay', supervisor: 'overview', programme_manager: 'programme', admin: 'admin' };
 
 function navHTML() {
   return ROUTES.map((g) => {
     const items = g.items.filter((i) => !i[3] || state.can(i[3]));
-    return `<div class="nav-group">${g.group}</div>` + items.map(([k, label, ic]) =>
-      `<a class="nav-link" href="#/${k}" data-route="${k}">${icon(ic)}<span>${label}</span>${k === 'forecast' ? '<span class="badge hot" id="navAlerts" hidden></span>' : ''}${k === 'field' ? '<span class="badge" id="navTasks" hidden></span>' : ''}</a>`).join('');
+    return `<div class="nav-group">${t(g.group)}</div>` + items.map(([k, label, ic]) =>
+      `<a class="nav-link" href="#/${k}" data-route="${k}">${icon(ic)}<span>${t(label)}</span>${k === 'forecast' ? '<span class="badge hot" id="navAlerts" hidden></span>' : ''}${k === 'field' ? '<span class="badge" id="navTasks" hidden></span>' : ''}</a>`).join('');
   }).join('');
 }
 
@@ -64,8 +66,8 @@ async function route() {
     if (a.dataset.route === name) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
   const grp = ROUTES.find((g) => g.items.some((i) => i[0] === name));
-  document.getElementById('crumbGroup').textContent = grp.group;
-  document.getElementById('crumbView').textContent = grp.items.find((i) => i[0] === name)[1];
+  document.getElementById('crumbGroup').textContent = t(grp.group);
+  document.getElementById('crumbView').textContent = t(grp.items.find((i) => i[0] === name)[1]);
   document.title = `${grp.items.find((i) => i[0] === name)[1]} · RINDA`;
   document.getElementById('nav').classList.remove('open');
   drawer.close();
@@ -99,6 +101,12 @@ async function refreshMeta() {
 function renderBanners() {
   const m = state.meta;
   const out = [];
+  if (getLang() === 'rw') {
+    out.push(banner('warn', `${icon('info')}<div><b>Ikinyarwanda: ${t('Draft translation')}.</b> Field screens and navigation are in draft Kinyarwanda awaiting review with RBC and district teams; other pages stay in English. Report wrong or unclear terms through Help &amp; Glossary → Feedback.</div>`));
+  }
+  if (state.offlineBoot) {
+    out.push(banner('warn', `${icon('alert')}<div><b>Offline.</b> Showing the copy saved on this device the last time it was online. New observations are queued and sent when the connection returns.</div>`));
+  }
   if (state.boot.demo) {
     out.push(banner('warn', `${icon('info')}<div><b>Demonstration environment.</b> Forecasts are the real study archive; anything you create here is a labelled demonstration record.</div>`));
   }
@@ -123,8 +131,11 @@ function renderBanners() {
 async function loadUser() {
   state.user = await api.get('/api/auth/me');
   const u = state.user;
-  document.getElementById('userName').textContent = u.authenticated ? u.name : 'Sign in';
+  document.getElementById('userName').textContent = u.authenticated ? u.name : t('Sign in');
   document.getElementById('userRole').innerHTML = u.authenticated ? `${esc(u.role_label)}${u.demo ? ' <span class="demo">DEMO</span>' : ''}` : '';
+  document.getElementById('userChip').title = u.role_title || '';
+  if (u.authenticated && u.language && u.language !== getLang()) setLang(u.language);
+  paintLang();
   document.getElementById('navlinks').innerHTML = navHTML();
 }
 
@@ -132,14 +143,18 @@ function authDialog() {
   const u = state.user;
   if (u?.authenticated) {
     const d = modal('Account', `
-      <dl class="dl"><dt>Name</dt><dd>${esc(u.name)}</dd><dt>Role</dt><dd>${esc(u.role_label)}</dd><dt>Email</dt><dd class="mono">${esc(u.email)}</dd>${u.demo ? '<dt>Account</dt><dd>Demonstration</dd>' : ''}</dl>
+      <dl class="dl"><dt>Name</dt><dd>${esc(u.name)}</dd><dt>Role</dt><dd>${esc(u.role_label)}<br><span class="hint">${esc(u.role_title || '')} <i>(proposed RBC mapping)</i></span></dd>${u.district ? `<dt>District</dt><dd>${esc(u.district)}</dd>` : ''}<dt>Email</dt><dd class="mono">${esc(u.email)}</dd>${u.demo ? '<dt>Account</dt><dd>Demonstration</dd>' : ''}</dl>
       <p style="margin:0;font-size:12px;color:var(--ink-3)">Permissions: ${u.permissions.map((p) => `<span class="badge">${p}</span>`).join(' ')}</p>
       ${u.demo ? '' : `<details><summary style="cursor:pointer">Change password</summary><form id="pwForm" class="form" style="margin-top:10px">
         <div class="field"><label for="pwC">Current password</label><input id="pwC" type="password" autocomplete="current-password" required></div>
         <div class="field"><label for="pwN">New password</label><input id="pwN" type="password" autocomplete="new-password" minlength="12" required><span class="hint">At least 12 characters, upper- and lower-case letters and a digit.</span></div>
         <button class="btn primary">Update password</button></form></details>`}
       <div class="actions"><button class="btn" id="signOut">${icon('x')}Sign out</button></div>`);
-    d.querySelector('#signOut').addEventListener('click', async () => { await api.post('/api/auth/logout'); d.close(); await afterAuth('Signed out'); });
+    d.querySelector('#signOut').addEventListener('click', async () => {
+      await api.post('/api/auth/logout');
+      try { await caches.delete('rinda-api-v1'); } catch (e) { /* no cache storage */ }
+      d.close(); await afterAuth('Signed out');
+    });
     d.querySelector('#pwForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       try { await api.post('/api/auth/password', { current: d.querySelector('#pwC').value, new: d.querySelector('#pwN').value }); toast('Password updated'); d.close(); }
@@ -157,7 +172,8 @@ function authDialog() {
     ${u?.demo_enabled ? `<div class="fieldset" style="border:1px solid var(--line);border-radius:6px;padding:12px">
       <b style="font-size:12.5px">Explore with a demonstration role</b>
       <p style="margin:4px 0 10px;font-size:12px;color:var(--ink-3)">No password. Everything you create is stored as a demonstration record.</p>
-      <div class="actions">${u.roles.map((r) => `<button class="btn sm" data-demo="${r.role}">${r.label}</button>`).join('')}</div></div>` : ''}
+      <div class="actions">${u.roles.map((r) => `<button class="btn sm" data-demo="${r.role}" title="${esc(r.title || '')}">${r.label}</button>`).join('')}</div>
+      <p style="margin:8px 0 0;font-size:11.5px;color:var(--ink-3)">Roles map to RBC jobs (proposed): ${u.roles.map((r) => `<b>${esc(r.label)}</b>: ${esc(r.title || '')}`).join('; ')}.</p></div>` : ''}
     <p style="margin:0;font-size:11.5px;color:var(--ink-3)">Accounts are issued by your institution's RINDA administrator.${u?.public_read ? ' Forecasts and validation can be viewed without signing in.' : ''}</p>`);
   d.querySelector('#loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -266,9 +282,39 @@ async function waitReady(msg) {
   }
 }
 
+// Language switch: English reference text, draft Kinyarwanda for field screens.
+function paintLang() {
+  document.querySelectorAll('#langSeg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === getLang())));
+}
+async function chooseLang(l) {
+  setLang(l);
+  paintLang();
+  if (state.user?.authenticated) { try { await api.post('/api/auth/preferences', { language: l }); state.user.language = l; } catch (e) { /* saved locally anyway */ } }
+  document.getElementById('navlinks').innerHTML = navHTML();
+  document.getElementById('userName').textContent = state.user?.authenticated ? state.user.name : t('Sign in');
+  renderBanners();
+  route();
+}
+
+// Offline app shell: a service worker keeps the console and the last answers to a
+// few read requests (bootstrap, account, tasks) on the device.
+function registerShell() {
+  if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
+  navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => { /* offline shell is optional */ });
+  // On the first visit the worker takes control only after the page has loaded its
+  // data, so fetch the field essentials once more through it to keep a copy.
+  const warm = () => ['/api/v1/bootstrap', '/api/v1/auth/me', '/api/v1/tasks', '/api/v1/habitats', '/api/v1/field/summary']
+    .forEach((u) => fetch(u, { credentials: 'same-origin' }).catch(() => {}));
+  navigator.serviceWorker.addEventListener('controllerchange', warm, { once: true });
+}
+
 async function boot() {
   const msg = document.getElementById('bootMsg');
-  if (!(await waitReady(msg))) {
+  registerShell();
+  if (!navigator.onLine) {
+    // no network: start from what the service worker saved, if anything
+    state.offlineBoot = true;
+  } else if (!(await waitReady(msg))) {
     msg.innerHTML = 'RINDA did not respond within three minutes. <a href="" onclick="location.reload()">Retry</a>';
     return;
   }
@@ -277,7 +323,9 @@ async function boot() {
     await loadUserSafe();
     state.boot = await api.get('/api/bootstrap');
   } catch (e) {
-    msg.innerHTML = `${esc(e.message)} <button class="btn sm" onclick="location.reload()">Retry</button>`;
+    msg.innerHTML = state.offlineBoot
+      ? 'You are offline and this device has no saved copy of RINDA yet. Open RINDA once while connected, then it will start without a connection. <button class="btn sm" onclick="location.reload()">Retry</button>'
+      : `${esc(e.message)} <button class="btn sm" onclick="location.reload()">Retry</button>`;
     if (e.status === 401) { document.getElementById('boot').remove(); document.getElementById('shell').hidden = false; authDialog(); }
     return;
   }
@@ -292,6 +340,7 @@ async function boot() {
   document.getElementById('datePrev').addEventListener('click', () => stepDate(-1));
   document.getElementById('dateNext').addEventListener('click', () => stepDate(1));
   document.getElementById('userChip').addEventListener('click', authDialog);
+  document.querySelectorAll('#langSeg button').forEach((x) => x.addEventListener('click', () => chooseLang(x.dataset.lang)));
   document.getElementById('themeBtn').addEventListener('click', () => {
     const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.theme = t;

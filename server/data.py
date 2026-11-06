@@ -53,6 +53,7 @@ class Store:
             s1 = s1[(s1["pass"] == CFG["sources"]["sentinel1"]["orbit_pass"]) & (s1.buffer_m == prim)]
             self.s1 = s1[["site_id", "date", "vv_db", "vh_db", "n_valid_px"]].sort_values(["site_id", "date"])
         self.s1["date"] = pd.to_datetime(self.s1["date"])
+        self.s1["site_id"] = self.s1["site_id"].astype(str).astype("category")  # 600 values: no per-row strings
         self.s1_dates = sorted(self.s1.date.dt.strftime("%Y-%m-%d").unique())
         self.product: dict[int, pd.DataFrame] = {}
         for h in HORIZONS:
@@ -60,6 +61,8 @@ class Store:
                 p = pd.read_csv(V3 / f"product_h{h}.csv", parse_dates=["date", "origin"])
                 p = p.merge(self.sites[["site_id", "stratum", "water_freq"]], on="site_id", how="left")
                 p["target_date"] = p["date"] + pd.to_timedelta(h, unit="D")
+                for c in p.columns[(p.dtypes == object) | p.dtypes.astype(str).str.startswith("str")]:
+                    p[c] = p[c].astype("category")  # repeated labels: categories, not per-row strings
                 self.product[h] = p
                 continue
             p = pd.read_csv(OUT / f"forecast_product_A_new_water_h{h}.csv", parse_dates=["date"])

@@ -27,22 +27,38 @@ from fastapi import Depends, HTTPException, Request, Response
 from db import now, tx
 from engine import VAR
 
-ROLES = ["viewer", "field_officer", "analyst", "supervisor", "admin"]
+ROLES = ["viewer", "field_officer", "analyst", "supervisor", "programme_manager", "admin"]
 ROLE_LABEL = {"viewer": "Viewer", "field_officer": "Field officer", "analyst": "Technical analyst",
-              "supervisor": "Supervisor", "admin": "Institution administrator"}
+              "supervisor": "Supervisor", "programme_manager": "Programme manager",
+              "admin": "Institution administrator"}
+# The job each role is meant for in Rwanda's malaria programme. PROPOSED mapping, to be
+# confirmed with RBC Malaria & NTD Division before accounts are issued.
+ROLE_TITLE = {
+    "viewer": "Partner or evaluator (read only)",
+    "field_officer": "Environmental Health Officer / larval survey technician",
+    "analyst": "Entomologist or data manager",
+    "supervisor": "District Vector Control Officer",
+    "programme_manager": "National Malaria Programme Manager (RBC)",
+    "admin": "System administrator (RBC ICT)",
+}
 
 _READ = {"read:forecast"}
 _FIELD = {"read:field", "write:observation", "update:own_task", "read:alerts"}
 _ANALYST = {"plan:mission", "upload:flightlog", "score:batch", "export:validation", "read:field", "read:alerts",
             "write:observation"}
 _SUPERVISOR = {"assign:task", "review:observation", "authorize:intervention", "record:intervention",
-               "approve:mission", "act:alert", "delete:flightlog", "read:audit", "export:field"}
+               "approve:mission", "act:alert", "delete:flightlog", "read:audit", "export:field",
+               "read:me", "export:report", "read:outbox", "write:outbox"}
+# National view: aggregate indicators and reports across districts, no record-level
+# field detail (officer names, GPS of individual records) and no operational actions.
+_PROGRAMME = {"read:me", "export:report", "read:alerts"}
 PERMS = {
     "viewer": _READ,
     "field_officer": _READ | _FIELD | {"record:intervention"},
-    "analyst": _READ | _ANALYST,
+    "analyst": _READ | _ANALYST | {"read:me"},
     "supervisor": _READ | _FIELD | _ANALYST | _SUPERVISOR,
-    "admin": _READ | _FIELD | _ANALYST | _SUPERVISOR | {"admin:users", "admin:system"},
+    "programme_manager": _READ | _PROGRAMME,
+    "admin": _READ | _FIELD | _ANALYST | _SUPERVISOR | _PROGRAMME | {"admin:users", "admin:system"},
 }
 
 SESSION_HOURS = 12
@@ -65,6 +81,8 @@ class User:
     role: str
     organisation: str | None = None
     demo: bool = False
+    district: str | None = None
+    language: str = "en"
 
     @property
     def perms(self) -> set[str]:
@@ -75,7 +93,8 @@ class User:
 
     def public(self) -> dict:
         return {"id": self.id, "email": self.email, "name": self.name, "role": self.role,
-                "role_label": ROLE_LABEL.get(self.role, self.role), "organisation": self.organisation,
+                "role_label": ROLE_LABEL.get(self.role, self.role), "role_title": ROLE_TITLE.get(self.role),
+                "organisation": self.organisation, "district": self.district, "language": self.language,
                 "demo": self.demo, "permissions": sorted(self.perms), "authenticated": self.id is not None}
 
 
@@ -109,26 +128,30 @@ def password_problem(pw: str) -> str | None:
 
 # ------------------------------------------------------------------- users
 def _row_user(r) -> User:
-    return User(r["id"], r["email"], r["name"], r["role"], r["organisation"], bool(r["demo"]))
+    k = r.keys()
+    return User(r["id"], r["email"], r["name"], r["role"], r["organisation"], bool(r["demo"]),
+                r["district"] if "district" in k else None, (r["language"] if "language" in k else None) or "en")
 
 
 def create_user(email: str, name: str, role: str, password: str, organisation: str | None = None,
-                demo: bool = False) -> int:
+                demo: bool = False, district: str | None = None, phone: str | None = None,
+                language: str = "en") -> int:
     if role not in ROLES:
         raise ValueError("unknown role")
     with tx() as c:
-        cur = c.execute("INSERT INTO users (email, name, role, organisation, pw_hash, demo, created_utc) "
-                        "VALUES (?,?,?,?,?,?,?)",
+        cur = c.execute("INSERT INTO users (email, name, role, organisation, pw_hash, demo, created_utc, district, "
+                        "phone, language) VALUES (?,?,?,?,?,?,?,?,?,?)",
                         (email.strip().lower(), name.strip(), role, organisation, hash_password(password),
-                         int(demo), now()))
+                         int(demo), now(), district, phone, language))
         return int(cur.lastrowid)
 
 
 def list_users() -> list[dict]:
     with tx() as c:
-        rows = c.execute("SELECT id, email, name, role, organisation, active, demo, created_utc, last_login_utc "
-                         "FROM users ORDER BY id").fetchall()
-    return [dict(r) | {"role_label": ROLE_LABEL.get(r["role"], r["role"])} for r in rows]
+        rows = c.execute("SELECT id, email, name, role, organisation, district, phone, language, active, demo, "
+                         "created_utc, last_login_utc FROM users ORDER BY id").fetchall()
+    return [dict(r) | {"role_label": ROLE_LABEL.get(r["role"], r["role"]), "role_title": ROLE_TITLE.get(r["role"])}
+            for r in rows]
 
 
 def user_by_id(uid: int) -> User | None:
@@ -166,6 +189,7 @@ DEMO_USERS = {
     "field_officer": ("demo.field@rinda.demo", "Demo field officer"),
     "analyst": ("demo.analyst@rinda.demo", "Demo analyst"),
     "supervisor": ("demo.supervisor@rinda.demo", "Demo supervisor"),
+    "programme_manager": ("demo.programme@rinda.demo", "Demo programme manager"),
     "admin": ("demo.admin@rinda.demo", "Demo administrator"),
 }
 
@@ -177,7 +201,8 @@ def ensure_demo_users() -> None:
         have = {r[0] for r in c.execute("SELECT email FROM users WHERE demo=1")}
     for role, (email, name) in DEMO_USERS.items():
         if email not in have:
-            create_user(email, name, role, secrets.token_urlsafe(24) + "Aa1", "Demonstration", demo=True)
+            create_user(email, name, role, secrets.token_urlsafe(24) + "Aa1", "Demonstration", demo=True,
+                        district="Gasabo")
 
 
 # ----------------------------------------------------------------- sessions
