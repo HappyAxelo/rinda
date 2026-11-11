@@ -1,0 +1,27 @@
+{
+  "_doc": "Planned field-node design from the PhD proposal. Positions stay null until a node is commissioned; RINDA shows only readings actually received.",
+  "design": {
+    "controller": "ESP32-WROOM-32E",
+    "radio": "SX1276 LoRa",
+    "clock": "DS3231",
+    "gateway": "Raspberry Pi 4",
+    "sensors": [
+      {"part": "JSN-SR04T", "measures": "water_level_cm", "unit": "cm"},
+      {"part": "DS18B20", "measures": "water_temp_c", "unit": "degC"},
+      {"part": "Resistance probe", "measures": "water_present", "unit": "boolean"}
+    ],
+    "zone_weather": {"part": "ATMOS 41", "measures": ["air_temp_c", "humidity_pct", "rain_mm"], "units": ["degC", "%", "mm"]}
+  },
+  "positions": {},
+  "variables": {
+    "water_level_cm": {"unit": "cm", "min": 0, "max": 500, "label": "Water level"},
+    "water_temp_c": {"unit": "degC", "min": 0, "max": 60, "label": "Water temperature"},
+    "water_present": {"unit": "boolean", "min": 0, "max": 1, "label": "Water presence"},
+    "air_temp_c": {"unit": "degC", "min": -10, "max": 60, "label": "Ambient temperature"},
+    "humidity_pct": {"unit": "%", "min": 0, "max": 100, "label": "Humidity"},
+    "rain_mm": {"unit": "mm", "min": 0, "max": 500, "label": "Rainfall"},
+    "battery_v": {"unit": "V", "min": 0, "max": 30, "label": "Battery"},
+    "rssi_dbm": {"unit": "dBm", "min": -160, "max": 0, "label": "Signal strength"}
+  },
+  "status_minutes": {"online": 60, "delayed": 360}
+}

@@ -7,10 +7,10 @@
 // * Writes are never cached or replayed here: observations recorded offline go
 //   through the idempotent queue in js/offline.js.
 // * Signing out deletes the saved API answers (see app.js).
-const SHELL = 'rinda-shell-v1';
-const API = 'rinda-api-v1';
-const VIEWS = ['admin', 'assurance', 'bulletins', 'evidence', 'field', 'flight', 'forecast', 'governance', 'help', 'impact',
-  'missions', 'network', 'overview', 'programme', 'replay', 'scenario'];
+const SHELL = 'rinda-shell-v2';
+const API = 'rinda-api-v2';
+const VIEWS = ['admin', 'assurance', 'bulletins', 'dossier', 'drone', 'evidence', 'field', 'flight', 'forecast', 'governance', 'help', 'impact',
+  'issue', 'map', 'missions', 'models', 'network', 'overview', 'programme', 'replay', 'reports', 'scenario'];
 const FILES = ['/', '/css/app.css', '/js/app.js', '/js/ui.js', '/js/site.js', '/js/offline.js', '/js/i18n.js',
   '/vendor/echarts.min.js', '/vendor/leaflet/leaflet.js', '/vendor/leaflet/leaflet.css',
   '/vendor/leaflet/images/layers.png', '/vendor/leaflet/images/layers-2x.png', '/vendor/leaflet/images/marker-icon.png',
@@ -18,7 +18,7 @@ const FILES = ['/', '/css/app.css', '/js/app.js', '/js/ui.js', '/js/site.js', '/
   ...VIEWS.map((v) => `/js/views/${v}.js`)];
 // read-only API answers worth keeping for offline field use (path prefixes, after /api/v1)
 const KEEP = ['/api/v1/bootstrap', '/api/v1/auth/me', '/api/v1/tasks', '/api/v1/habitats', '/api/v1/forecast/meta',
-  '/api/v1/field/summary', '/api/v1/alerts', '/api/v1/observations'];
+  '/api/v1/field/summary', '/api/v1/alerts', '/api/v1/observations', '/api/v1/overview', '/api/v1/geo/', '/api/v1/protocol'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(SHELL).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));

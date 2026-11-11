@@ -19,18 +19,18 @@ export async function render(el, st) {
 
   el.innerHTML = `
   <div class="page-head">
-    <div><h1>Mission planning</h1><p>Turns the ${st.h}-day forecast for ${fmt.date(st.date)} into flyable sorties. High-priority points are flown as <b>verify, then treat if authorised</b>; insufficient-evidence points are flown <b>inspect-only</b>. Flight-controller files are released only after a supervisor approves the mission.</p></div>
+    <div><h1>Inspection flight planner</h1><p>Turns the ${st.h}-day research forecast for ${fmt.date(st.date)} into inspection sorties. Every forecast target is flown <b>inspect-only</b>: the aircraft looks and records, and no treatment is planned. Treatment missions are built from supervisor-authorised habitats under Drone operations. All distances, times and volumes are planning estimates.</p></div>
     <div class="actions"><button class="btn" id="mpPreview">${icon('route')}Recompute</button>${st.can('plan:mission') ? `<button class="btn primary" id="mpCommit">${icon('check')}Commit mission</button>` : '<span class="hint">Sign in as an analyst or supervisor to commit missions.</span>'}</div>
   </div>
   <div class="grid g-4" id="mpKpis"></div>
   <div class="grid g-main" style="margin-top:14px">
-    ${card('Sortie routes', '<div class="map-host"><div class="map" id="mpMap" style="height:600px"></div></div>', { flush: true, sub: 'Diamonds: launch points · solid: verify-and-treat · ringed: inspect-only' })}
+    ${card('Sortie routes', '<div class="map-host"><div class="map" id="mpMap" style="height:600px"></div></div>', { flush: true, sub: 'Diamonds: launch points · rings: inspect-only targets' })}
     <div class="grid" style="align-content:start">
       ${card('Targeting policy', `
         <div class="form">
           <div class="field"><label>Maximum targets per day <span class="u" id="mtV">40</span></label><input type="range" min="5" max="120" step="5" value="40" id="mt"></div>
-          <label class="check"><input type="checkbox" id="incU" checked> Inspect verify-first sites (spray locked)</label>
-          <div class="field"><label>Inspect verify-first sites above <span class="u" id="muV">0.05</span></label><input type="range" min="0" max="0.3" step="0.01" value="0.05" id="mu"></div>
+          <label class="check"><input type="checkbox" id="incU" checked> Include evidence-insufficient locations</label>
+          <div class="field"><label>Include them above a score of <span class="u" id="muV">0.05</span></label><input type="range" min="0" max="0.3" step="0.01" value="0.05" id="mu"></div>
           <div class="field"><label>Launch strategy</label><select id="lm"><option value="mobile">Mobile crew, launch per zone</option><option value="fixed">Single fixed base (weather station)</option></select></div>
           <div class="field"><label>Launch zone radius <span class="u" id="zrV">900 m</span></label><input type="range" min="300" max="2500" step="100" value="900" id="zr"></div>
         </div>`)}
@@ -107,7 +107,7 @@ function draw(res, st, cfg) {
     s.waypoints.forEach((w) => {
       const treat = w.action === 'VERIFY_AND_TREAT';
       L.circleMarker([w.lat, w.lon], { radius: treat ? 6 : 5, color: treat ? css('--s1') : warn, weight: treat ? 1.5 : 2, fillColor: treat ? signal : css('--s1'), fillOpacity: 1 })
-        .bindTooltip(`<b class="mono">${w.site_id}</b> · ${s.id} stop ${w.seq}<br>${treat ? 'Verify and treat' : 'Inspect only (spray locked)'}<br>p = ${w.probability.toFixed(3)}`).on('click', () => window.openSite(w.site_id)).addTo(routeLayer);
+        .bindTooltip(`<b class="mono">${w.site_id}</b> · ${s.id} stop ${w.seq}<br>${treat ? 'Verify and treat' : 'Inspect only (spray locked)'}<br>${w.probability == null ? 'field-authorised' : `score ${w.probability.toFixed(3)}`}`).on('click', () => window.openSite(w.site_id)).addTo(routeLayer);
       bounds.push([w.lat, w.lon]);
     });
   }

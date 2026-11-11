@@ -27,18 +27,24 @@ import numpy as np  # noqa: E402
 import pandas as pd
 from fastapi import APIRouter, Body, Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+import connectors as C
+import datasets as D
 import db
 import field as F
+import geo as G
 import ops
 import planner as P
 import programme
+import reporting
 import rules as R
 import security as S
+import surveillance as V
 from bulletin import render_bulletin
 from data import CLAIM, STATION, records, store
 from engine import CFG, ENGINE, ENGINE_VERSION, ROOT, RUN_SUMMARY, V3_CARD, VAR
@@ -68,6 +74,11 @@ async def lifespan(_app):
     if where:
         jlog(event="admin.bootstrap", credential_location=where if where == "environment" else "var/initial_admin.txt")
     S.ensure_demo_users()
+    C.seed_sources()
+    C.seed_products()
+    G.seed_areas()
+    D.seed_study_tables()
+    V.seed_registry()
     ops.audit("system", "engine.ready", f"engine {ENGINE_VERSION} schema {db.schema_version()}")
     jlog(event="startup", engine=ENGINE_VERSION, demo=S.DEMO, public_read=S.PUBLIC_READ)
     yield
@@ -81,13 +92,14 @@ app = FastAPI(
                 "outputs prioritise inspection; they never authorise treatment.")
 
 # --------------------------------------------------------------- middleware
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 _lat: dict[str, deque] = defaultdict(lambda: deque(maxlen=500))
 _counts: dict[str, int] = defaultdict(int)
 _errors: dict[str, int] = defaultdict(int)
 
 CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
        "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://server.arcgisonline.com "
-       "https://*.basemaps.cartocdn.com; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; "
+       "https://tile.openstreetmap.org; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; "
        "base-uri 'self'; form-action 'self'")
 
 
@@ -408,7 +420,8 @@ def admin_audit(limit: int = Query(200, ge=1, le=2000), u: User = Depends(requir
 def bootstrap(u: User = Depends(require("read:forecast"))):
     st = store()
     return {
-        "product": {"name": "RINDA", "edition": "Vector Habitat Intelligence", "version": ENGINE_VERSION},
+        "product": {"name": "RINDA", "edition": "Vector Surveillance and Precision Larviciding", "version": ENGINE_VERSION},
+        "audit": V.AUDIT, "protocol": F.protocol_public(), "signal_labels": V.SIGNAL, "status_labels": V.STATUS_LABEL,
         "tenant": {"name": "Gikomero Sector pilot", "district": "Gasabo", "province": "Kigali City"},
         "mode": RUN_SUMMARY["provenance"]["mode"], "claim": CLAIM, "target": R.TARGET,
         "spatial_resolution": R.RESOLUTION,
@@ -721,18 +734,39 @@ def _treatment(d: dict | None) -> P.Treatment:
 
 
 def _select_targets(f: pd.DataFrame, thr: float, pol: dict) -> pd.DataFrame:
-    treat = f[(f.conformal_decision == "formation")].assign(action="VERIFY_AND_TREAT")
+    # A forecast only ever sends the aircraft to look: every forecast target is inspect-only.
+    treat = f[(f.conformal_decision == "formation")].assign(action="VERIFY_ONLY")
     parts = [treat]
     if pol.get("include_uncertain", True):
         unc = f[(f.conformal_decision == "uncertain") & ~f.site_id.isin(treat.site_id)]
         unc = unc[unc.probability >= float(pol.get("min_uncertain_probability", 0.05))]
         parts.append(unc.assign(action="VERIFY_ONLY"))
     sel = pd.concat(parts)
-    sel["_rank"] = (sel.action == "VERIFY_AND_TREAT").astype(int)
+    sel["_rank"] = (sel.conformal_decision == "formation").astype(int)
     sel = sel.sort_values(["_rank", "priority_score"], ascending=False).drop(columns="_rank")
     if pol.get("exclude"):
         sel = sel[~sel.site_id.isin(pol["exclude"])]
     return sel.head(max(1, min(int(pol.get("max_targets", 40)), 200)))
+
+
+def _treatment_targets(site_ids: list[str] | None) -> pd.DataFrame:
+    """Targets for a treatment mission: habitats with an authorised drone intervention, nothing else."""
+    with db.tx() as c:
+        rows = [dict(r) for r in c.execute("SELECT id, site_id FROM interventions WHERE status='authorized' AND method='bti_drone'")]
+    if site_ids is not None:
+        missing = sorted(set(site_ids) - {r["site_id"] for r in rows})
+        if missing:
+            raise HTTPException(409, "No authorised drone intervention for: " + ", ".join(missing[:8]) +
+                                     ". A treatment mission can only include habitats a supervisor has authorised for drone application.")
+        rows = [r for r in rows if r["site_id"] in set(site_ids)]
+    if not rows:
+        raise HTTPException(409, "No habitat has an authorised drone intervention. Plan an inspection flight instead.")
+    out = []
+    for r in rows:
+        s = F._site(r["site_id"])
+        out.append({"site_id": r["site_id"], "latitude": float(s.latitude), "longitude": float(s.longitude), "action": "VERIFY_AND_TREAT",
+                    "probability": float("nan"), "conformal_decision": "field_authorised", "priority_score": float("nan"), "intervention_id": r["id"]})
+    return pd.DataFrame(out).drop_duplicates("site_id")
 
 
 def _plan(body: dict) -> dict:
@@ -741,7 +775,10 @@ def _plan(body: dict) -> dict:
     d, f = st.forecast(h, body.get("date"))
     a, t = _aircraft(body.get("aircraft")), _treatment(body.get("treatment"))
     base = tuple(body.get("base") or (STATION["lat"], STATION["lon"]))
-    tg = _select_targets(f, st.thr[h], body.get("policy", {}))
+    kind = body.get("kind", "inspection")
+    if kind not in ("inspection", "treatment"):
+        raise HTTPException(422, "kind must be inspection or treatment.")
+    tg = _treatment_targets(body.get("site_ids")) if kind == "treatment" else _select_targets(f, st.thr[h], body.get("policy", {}))
     lc = body.get("launch") or {}
     res = P.plan(tg, a, t, base, launch=lc.get("mode", "mobile"),
                  zone_radius_m=float(lc.get("zone_radius_m", 900)),
@@ -751,11 +788,13 @@ def _plan(body: dict) -> dict:
                        "sector": P.lawnmower(area["sector_hull_ha"], a, t)}
     res["timing"] = P.timing_budget(a)
     res["energy"] = P.energy_per_ha(a)
-    res["issue_date"], res["horizon"] = d, h
+    res["issue_date"], res["horizon"], res["kind"] = d, h, kind
+    res["estimates_note"] = "Distances, durations, energy and product volumes are planning estimates from an assumed aircraft profile."
     res["window"] = {"issue": d, "formation_expected_by": (pd.Timestamp(d) + pd.Timedelta(days=h)).strftime("%Y-%m-%d")}
     res["meta"] = R.forecast_meta(h, d)
-    res["authorization_note"] = ("Treatment at any stop requires supervisor approval of this mission and onboard "
-                                 "confirmation; the forecast alone never authorises spraying.")
+    res["authorization_note"] = ("Treatment mission: every target has a supervisor-authorised drone intervention based on a verified field "
+                                 "finding. The mission file carries no spray command." if kind == "treatment" else
+                                 "Inspection flight: the aircraft looks and records. No treatment is planned or implied; a forecast never authorises spraying.")
     return res, a, t, lc, base, d, h
 
 
@@ -771,7 +810,7 @@ def plan_mission(body: dict = Body(...), u: User = Depends(require("read:forecas
         ops.save_mission(mid, d, h, u.name, {"aircraft": asdict(a), "treatment": asdict(t),
                                               "policy": body.get("policy", {}), "base": base, "launch": lc}, res)
         with db.tx() as c:
-            c.execute("UPDATE missions SET demo=? WHERE id=?", (int(u.demo), mid))
+            c.execute("UPDATE missions SET demo=?, kind=? WHERE id=?", (int(u.demo), res["kind"], mid))
         ops.audit(u.email, "mission.create", f"{mid}: {res['totals'].get('sorties', 0)} sorties, {res['totals'].get('targets', 0)} targets")
     return res
 
@@ -780,9 +819,12 @@ def plan_mission(body: dict = Body(...), u: User = Depends(require("read:forecas
 def missions(u: User = Depends(require("read:forecast"))):
     out = ops.list_missions()
     with db.tx() as c:
-        demo = {r["id"]: r["demo"] for r in c.execute("SELECT id, demo FROM missions")}
+        extra = {r["id"]: dict(r) for r in c.execute("SELECT id, demo, kind, approved_utc, decision_note, flight_result FROM missions")}
     for m in out:
-        m["demo"] = bool(demo.get(m["id"]))
+        e = extra.get(m["id"], {})
+        m["demo"] = bool(e.get("demo"))
+        m["kind"], m["approved_utc"], m["decision_note"] = e.get("kind") or "inspection", e.get("approved_utc"), e.get("decision_note")
+        m["flight_result"] = json.loads(e["flight_result"]) if e.get("flight_result") else None
     return out
 
 
@@ -808,11 +850,56 @@ def mission_status(mid: str, body: dict = Body(...), u: User = Depends(require("
         raise HTTPException(409, f"Cannot move a {m['status']} mission to {s}.")
     if s == "APPROVED" and not u.can("approve:mission"):
         raise HTTPException(403, "Only a supervisor can approve a mission for flight.")
+    note = str(body.get("note") or "").strip()[:500]
+    if body.get("reject"):
+        if s != "CANCELLED" or m["status"] != "PLANNED" or not u.can("approve:mission"):
+            raise HTTPException(409, "Only a supervisor can reject a planned mission.")
+        if not note:
+            raise HTTPException(422, "Give a reason when rejecting a mission.")
+    if s == "APPROVED" and (m.get("kind") or "inspection") == "treatment":
+        with db.tx() as c:
+            ok = {r[0] for r in c.execute("SELECT site_id FROM interventions WHERE status='authorized' AND method='bti_drone'")}
+        gone = sorted({w["site_id"] for x in m["result"]["sorties"] for w in x["waypoints"]} - ok)
+        if gone:
+            raise HTTPException(409, "These targets no longer have an authorised drone intervention: " + ", ".join(gone[:8]) + ".")
     ops.set_status(mid, s)
+    if note:
+        with db.tx() as c:
+            c.execute("UPDATE missions SET decision_note=? WHERE id=?", (note, mid))
     if s == "APPROVED":
         with db.tx() as c:
             c.execute("UPDATE missions SET approved_by=?, approved_utc=? WHERE id=?", (u.id, db.now(), mid))
     ops.audit(u.email, "mission.status", f"{mid} {m['status']} -> {s}")
+    return {"ok": True}
+
+
+class FlightResult(BaseModel):
+    flown_on: str = Field(pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+    sorties_flown: int = Field(ge=0, le=200)
+    targets_reached: int = Field(ge=0, le=2000)
+    water_confirmed: int | None = Field(default=None, ge=0, le=2000)
+    treated_sites: list[str] = Field(default=[], max_length=500)
+    product_used: str = Field(default="", max_length=200)
+    notes: str = Field(default="", max_length=2000)
+
+
+@api.post("/missions/{mid}/result", tags=["missions"])
+def mission_result(mid: str, b: FlightResult, u: User = Depends(require("plan:mission"))):
+    """What actually happened on the flight, as recorded by the crew."""
+    m = ops.get_mission(mid)
+    if not m:
+        raise HTTPException(404, "Unknown mission.")
+    if m["status"] not in ("IN_FLIGHT", "COMPLETED"):
+        raise HTTPException(409, "Record results once the mission has flown.")
+    planned = {w["site_id"] for s in m["result"]["sorties"] for w in s["waypoints"]}
+    if (m.get("kind") or "inspection") != "treatment" and b.treated_sites:
+        raise HTTPException(409, "An inspection flight cannot record treatment.")
+    if not set(b.treated_sites) <= planned:
+        raise HTTPException(422, "Treated sites must be targets of this mission.")
+    with db.tx() as c:
+        c.execute("UPDATE missions SET flight_result=? WHERE id=?",
+                  (json.dumps(b.model_dump() | {"recorded_by": u.name, "recorded_utc": db.now(), "demo": bool(u.demo)}), mid))
+    ops.audit(u.email, "mission.result", f"{mid} sorties={b.sorties_flown} reached={b.targets_reached} treated={len(b.treated_sites)}")
     return {"ok": True}
 
 
@@ -936,7 +1023,8 @@ def telemetry_ingest(station_id: str, request: Request, body: dict = Body(...), 
         raise HTTPException(401, "Unknown station or bad key.")
     if len(json.dumps(body)) > 4096:
         raise HTTPException(413, "Telemetry record too large.")
-    return ops.ingest_telemetry(station_id, body)
+    out = ops.ingest_telemetry(station_id, body)
+    return out | {"readings": C.normalise_telemetry(station_id, body)}
 
 
 @api.get("/telemetry", tags=["inputs"])
@@ -988,6 +1076,9 @@ def bulletin(h: int = 7, date: str | None = None, u: User = Depends(require("rea
 # ------------------------------------------------------------------ mount
 api.include_router(F.router)
 api.include_router(programme.router)
+api.include_router(V.router)
+api.include_router(D.router)
+api.include_router(reporting.router)
 app.include_router(api, prefix="/api/v1")
 app.include_router(api, prefix="/api", include_in_schema=False)
 

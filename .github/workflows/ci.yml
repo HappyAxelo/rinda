@@ -28,7 +28,10 @@ jobs:
           for i in $(seq 90); do curl -sf localhost:8740/api/v1/ready | grep -q '"ready"' && break; sleep 2; done
           for u in /api/v1/bootstrap "/api/v1/forecast?h=7" "/api/v1/replay?h=7" "/api/v1/alerts?h=7" /api/v1/field/summary "/api/v1/scenario?site=G0473&date=2026-01-20&h=7" "/api/forecast?h=14" /api/site/G0221 \
                    "/api/explain?site=G0221&date=2025-11-26&h=7" "/api/scenario?site=G0221&date=2025-11-26&h=7&rain=2" \
-                   /api/assurance /api/evidence /api/meteo /api/meteo/summary "/api/verification?h=7" "/api/bulletin?h=7"; do
+                   /api/assurance /api/evidence /api/meteo /api/meteo/summary "/api/verification?h=7" "/api/bulletin?h=7" \
+                   /api/v1/overview /api/v1/freshness /api/v1/geo/boundaries "/api/v1/map/forecast?h=7" /api/v1/map/earth \
+                   "/api/v1/map/earth?date=2025-12-01&compare=2025-06-01" /api/v1/map/iot /api/v1/map/meteo /api/v1/map/entomology \
+                   /api/v1/map/operations /api/v1/dossier/G0442 /api/v1/earth/products; do
             curl -sf "localhost:8740$u" > /dev/null || echo "::error::endpoint failed: $u"
           done
           curl -sf -X POST localhost:8740/api/v1/economics -H 'X-RINDA: 1' -H 'content-type: application/json' -d '{}' > /dev/null

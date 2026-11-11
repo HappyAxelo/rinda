@@ -6,7 +6,10 @@
 // Usage: t('Record observation'). The English text is the key.
 
 const RW = {
-  // navigation
+  // navigation (six modules)
+  'National Situation Overview': 'Uko ibintu bihagaze mu gihugu', 'National Surveillance Map': "Ikarita y'igenzura",
+  'Field Surveillance & Operations': "Igenzura n'ibikorwa mu murima", 'Drone Operations': 'Ibikorwa bya drone',
+  'Monitoring, Impact & Reporting': 'Ikurikirana na raporo', 'Administration & Evidence': "Ubuyobozi n'ibimenyetso",
   Operations: 'Ibikorwa', Evidence: 'Ibimenyetso', Programme: 'Porogaramu',
   'Situation Overview': 'Uko ibintu bihagaze', 'Habitat Forecast': "Iteganyagihe ry'indiri",
   'Field Surveillance': 'Igenzura mu murima', 'Mission Planning': "Gutegura ingendo za drone",

@@ -41,11 +41,15 @@ Generated from the OpenAPI schema by `scripts/gen_api_docs.py`. Interactive vers
 | GET | `/api/v1/habitats` | field_officer, analyst, supervisor, admin (`read:field`) | Habitats registered in the field, away from the radar monitoring points. |
 | GET | `/api/v1/interventions` | field_officer, analyst, supervisor, admin (`read:field`) | List Interventions |
 | POST | `/api/v1/interventions` | supervisor, admin (`authorize:intervention`) | Authorise |
+| POST | `/api/v1/interventions/reject` | supervisor, admin (`authorize:intervention`) | A supervisor's decision not to treat, kept as a record with its reason. |
 | POST | `/api/v1/interventions/{iid}/followup` | supervisor, admin (`review:observation`) | Followup |
 | POST | `/api/v1/interventions/{iid}/performed` | field_officer, supervisor, admin (`record:intervention`) | Performed |
 | POST | `/api/v1/observations` | field_officer, analyst, supervisor, admin (`write:observation`) | Create Observation |
 | GET | `/api/v1/observations` | field_officer, analyst, supervisor, admin (`read:field`) | List Observations |
+| POST | `/api/v1/observations/{oid}/photos` | field_officer, analyst, supervisor, admin (`write:observation`) | Add Photo |
 | POST | `/api/v1/observations/{oid}/review` | supervisor, admin (`review:observation`) | Review Observation |
+| GET | `/api/v1/photos/{pid}` | field_officer, analyst, supervisor, admin (`read:field`) | Get Photo |
+| GET | `/api/v1/protocol` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Get Protocol |
 | POST | `/api/v1/tasks` | supervisor, admin (`assign:task`) | Create Task |
 | GET | `/api/v1/tasks` | field_officer, analyst, supervisor, admin (`read:field`) | List Tasks |
 | POST | `/api/v1/tasks/{tid}/status` | field_officer, supervisor, admin (`update:own_task`) | Task Status |
@@ -99,6 +103,45 @@ Generated from the OpenAPI schema by `scripts/gen_api_docs.py`. Interactive vers
 | GET | `/api/v1/reports/weekly` | supervisor, programme_manager, admin (`export:report`) | Weekly Json |
 | GET | `/api/v1/reports/weekly.html` | supervisor, programme_manager, admin (`export:report`) | Weekly Html |
 
+### Surveillance
+
+| Method | Path | Who | Purpose |
+|---|---|---|---|
+| GET | `/api/v1/connectors` | analyst, admin (`read:models`) | List Connectors |
+| POST | `/api/v1/connectors/{key}/records` | analyst, admin (`manage:data`) | Push Records |
+| POST | `/api/v1/connectors/{key}/run` | analyst, admin (`manage:data`) | Run Connector |
+| GET | `/api/v1/dossier/{sid}` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Dossier |
+| GET | `/api/v1/earth/products` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Earth Products |
+| GET | `/api/v1/freshness` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Freshness |
+| GET | `/api/v1/geo/areas` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Geo Areas |
+| GET | `/api/v1/geo/boundaries` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Geo Boundaries |
+| GET | `/api/v1/iot/nodes/{node_id}` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Iot Node |
+| GET | `/api/v1/map/earth` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Map Earth |
+| GET | `/api/v1/map/entomology` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Map Entomology |
+| GET | `/api/v1/map/forecast` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Map Forecast |
+| GET | `/api/v1/map/iot` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Map Iot |
+| GET | `/api/v1/map/meteo` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Map Meteo |
+| GET | `/api/v1/map/operations` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Map Operations |
+| GET | `/api/v1/model-audit` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Model Audit |
+| GET | `/api/v1/models` | analyst, admin (`read:models`) | List Models |
+| POST | `/api/v1/models/{mid}/decision` | admin (`decide:model`) | Decide |
+| GET | `/api/v1/overview` | public | Overview |
+| GET | `/api/v1/search` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Search |
+| GET | `/api/v1/training/runs` | analyst, admin (`read:models`) | List Runs |
+| POST | `/api/v1/training/runs` | analyst, admin (`train:model`) | Start Run |
+| GET | `/api/v1/training/runs/{rid}` | analyst, admin (`read:models`) | Get Run |
+| GET | `/api/v1/training/targets` | analyst, admin (`read:models`) | Training Targets |
+
+### Datasets
+
+| Method | Path | Who | Purpose |
+|---|---|---|---|
+| GET | `/api/v1/datasets` | analyst, admin (`read:models`) | List Datasets |
+| GET | `/api/v1/datasets/kinds` | analyst, admin (`read:models`) | Kinds |
+| POST | `/api/v1/datasets/upload` | analyst, admin (`manage:data`) | Upload |
+| GET | `/api/v1/datasets/{did}` | analyst, admin (`read:models`) | Get Dataset |
+| POST | `/api/v1/datasets/{did}/confirm` | analyst, admin (`manage:data`) | Confirm |
+
 ### Flight Logs
 
 | Method | Path | Who | Purpose |
@@ -136,8 +179,17 @@ Generated from the OpenAPI schema by `scripts/gen_api_docs.py`. Interactive vers
 | POST | `/api/v1/missions/plan` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Planning preview is open to every reader; committing needs plan:mission. |
 | GET | `/api/v1/missions/{mid}` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Mission |
 | GET | `/api/v1/missions/{mid}/export` | analyst, supervisor, admin (`plan:mission`) | Mission Export |
+| POST | `/api/v1/missions/{mid}/result` | analyst, supervisor, admin (`plan:mission`) | What actually happened on the flight, as recorded by the crew. |
 | POST | `/api/v1/missions/{mid}/status` | analyst, supervisor, admin (`plan:mission`) | Mission Status |
 | POST | `/api/v1/timing` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Timing |
+
+### Reporting
+
+| Method | Path | Who | Purpose |
+|---|---|---|---|
+| GET | `/api/v1/reports/indicators` | analyst, supervisor, programme_manager, admin (`read:me`) | Report |
+| GET | `/api/v1/reports/indicators.csv` | supervisor, programme_manager, admin (`export:report`) | Report Csv |
+| GET | `/api/v1/reports/indicators.pdf` | supervisor, programme_manager, admin (`export:report`) | Report Pdf |
 
 ## Examples
 

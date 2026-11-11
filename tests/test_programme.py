@@ -60,7 +60,7 @@ def test_programme_manager_sees_aggregates_not_records(app):
     assert pm.get("/api/v1/reports/weekly").status_code == 200
     assert pm.get("/api/v1/observations").status_code == 403
     assert pm.get("/api/v1/tasks").status_code == 403
-    assert pm.post("/api/v1/interventions", json={"observation_id": 1, "method": "bti_ground", "protocol_ref": "SOP-1"},
+    assert pm.post("/api/v1/interventions", json={"observation_id": 1, "method": "bti_ground", "protocol_ref": "SOP-1", "habitat_suitability": "suitable_for_ground"},
                    headers=W).status_code == 403
 
 

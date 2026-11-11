@@ -20,6 +20,8 @@ services:
         value: "1"
       - key: RINDA_SECURE_COOKIES  # Render terminates HTTPS
         value: "1"
+      - key: RINDA_TRAINING        # training needs more memory than the 512 MB plan; run it on a larger server
+        value: "0"
       - key: RINDA_ADMIN_EMAIL
         value: admin@rinda.local
       - key: RINDA_ADMIN_PASSWORD  # generated once; read it in the Render dashboard

@@ -52,13 +52,15 @@ _SUPERVISOR = {"assign:task", "review:observation", "authorize:intervention", "r
 # National view: aggregate indicators and reports across districts, no record-level
 # field detail (officer names, GPS of individual records) and no operational actions.
 _PROGRAMME = {"read:me", "export:report", "read:alerts"}
+# Analyst workspace: data registry and training. Approval of a model is separate.
+_MODELS = {"read:models", "manage:data", "train:model"}
 PERMS = {
     "viewer": _READ,
     "field_officer": _READ | _FIELD | {"record:intervention"},
-    "analyst": _READ | _ANALYST | {"read:me"},
+    "analyst": _READ | _ANALYST | _MODELS | {"read:me"},
     "supervisor": _READ | _FIELD | _ANALYST | _SUPERVISOR,
     "programme_manager": _READ | _PROGRAMME,
-    "admin": _READ | _FIELD | _ANALYST | _SUPERVISOR | _PROGRAMME | {"admin:users", "admin:system"},
+    "admin": _READ | _FIELD | _ANALYST | _SUPERVISOR | _PROGRAMME | _MODELS | {"admin:users", "admin:system", "decide:model"},
 }
 
 SESSION_HOURS = 12

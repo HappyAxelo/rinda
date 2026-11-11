@@ -1,0 +1,15 @@
+{
+  "_doc": "Scientific audit of the served model. Changing label_reconstruction_complete to true requires corrected labels and a full rerun of the v3 protocol.",
+  "audit_date": "2026-11-05",
+  "source": "habitat-forecast/outputs/v3_audit/README.md",
+  "applies_to": ["v3"],
+  "label_reconstruction_complete": false,
+  "title": "Scientific warning: 5 November 2026 audit of the v3 model",
+  "summary": "The v3 scores reproduce, but its labels do not mainly measure new water in the marshland. Do not treat v3 as validated marshland-water forecasting or use it to recommend interventions.",
+  "findings": [
+    "83% (7-day) and 87% (14-day) of formation events lie within 100 m of the lake.",
+    "Sentinel-1C verifies 80% (7-day) and 73% (14-day) of evaluation events and is not harmonised. On track 123 over 500 m from the lake, Sentinel-1A verified 0 events in 23,195 rows and Sentinel-1C verified 385 in 20,783.",
+    "297 of the 598 evaluated sites are outside Gikomero Sector."
+  ],
+  "required_before_upgrade": "Correct for Sentinel-1C, rebuild labels and features, rerun the v3 protocol, and report lake-shore and inland sites separately."
+}

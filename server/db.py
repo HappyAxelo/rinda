@@ -81,6 +81,56 @@ ALTER TABLE users ADD COLUMN district TEXT;
 ALTER TABLE users ADD COLUMN phone TEXT;
 ALTER TABLE users ADD COLUMN language TEXT NOT NULL DEFAULT 'en';
 """),
+    (6, "evidence platform: sources, datasets, samples, products, areas, training, registry", """
+CREATE TABLE IF NOT EXISTS data_sources (
+  key TEXT PRIMARY KEY, name TEXT NOT NULL, domain TEXT NOT NULL, mode TEXT NOT NULL, origin TEXT,
+  expected_update_days REAL, connector_state TEXT NOT NULL DEFAULT 'not_configured', last_ingest_utc TEXT,
+  last_observation TEXT, validation_status TEXT, notes TEXT);
+CREATE TABLE IF NOT EXISTS ingestion_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, source_key TEXT NOT NULL, started_utc TEXT, finished_utc TEXT,
+  status TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 1, n_received INTEGER, n_accepted INTEGER, n_duplicate INTEGER,
+  n_rejected INTEGER, message TEXT, actor TEXT, dataset_version_id INTEGER);
+CREATE TABLE IF NOT EXISTS dataset_versions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, version INTEGER NOT NULL, label TEXT, filename TEXT,
+  sha256 TEXT, raw_path TEXT, processed_path TEXT, n_rows INTEGER, columns TEXT, report TEXT, status TEXT NOT NULL,
+  provenance TEXT NOT NULL, target TEXT, horizon INTEGER, created_by TEXT, created_utc TEXT, confirmed_by TEXT,
+  confirmed_utc TEXT, demo INTEGER NOT NULL DEFAULT 0, UNIQUE(kind, version));
+CREATE TABLE IF NOT EXISTS environmental_observations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, source_key TEXT NOT NULL, dataset_version_id INTEGER, station_id TEXT, site_id TEXT,
+  lat REAL, lon REAL, observed_utc TEXT NOT NULL, received_utc TEXT, variable TEXT NOT NULL, value REAL, unit TEXT,
+  quality_flag TEXT, provenance TEXT NOT NULL, dedupe_key TEXT UNIQUE);
+CREATE TABLE IF NOT EXISTS entomological_samples (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT NOT NULL, dataset_version_id INTEGER, observation_id INTEGER, site_id TEXT,
+  task_id INTEGER, intervention_id INTEGER, lat REAL, lon REAL, sample_date TEXT NOT NULL, collector TEXT, sampling_method TEXT, dips INTEGER,
+  water_present TEXT, larvae_present TEXT, anopheles_larvae_count INTEGER, stage_early INTEGER, stage_late INTEGER, pupae_count INTEGER,
+  species TEXT, sample_type TEXT NOT NULL DEFAULT 'larval', resistance_finding TEXT, provenance TEXT NOT NULL, demo INTEGER NOT NULL DEFAULT 0,
+  dedupe_key TEXT UNIQUE);
+CREATE TABLE IF NOT EXISTS raster_products (
+  product_id TEXT PRIMARY KEY, source_key TEXT NOT NULL, platform TEXT, acquired_utc TEXT, acquired_date TEXT, processed_utc TEXT,
+  resolution_m REAL, cloud_pct REAL, relative_orbit INTEGER, orbit_state TEXT, processing_method TEXT, storage_ref TEXT, provenance TEXT NOT NULL,
+  validation_status TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS administrative_areas (
+  code TEXT PRIMARY KEY, level TEXT NOT NULL, name TEXT NOT NULL, parent TEXT, onboarded INTEGER NOT NULL DEFAULT 0,
+  geometry_ref TEXT, source TEXT);
+CREATE TABLE IF NOT EXISTS training_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, target TEXT NOT NULL, horizon INTEGER NOT NULL, dataset_version_id INTEGER, config TEXT, status TEXT NOT NULL,
+  seed INTEGER, metrics TEXT, message TEXT, created_by TEXT, created_utc TEXT, started_utc TEXT, finished_utc TEXT, model_id TEXT,
+  predictions_path TEXT, predictions_sha256 TEXT);
+CREATE TABLE IF NOT EXISTS model_registry (
+  id TEXT PRIMARY KEY, target TEXT NOT NULL, horizon INTEGER, version TEXT NOT NULL, status TEXT NOT NULL, path TEXT, metrics TEXT, training_run_id INTEGER,
+  dataset_version_id INTEGER, audit_warning INTEGER NOT NULL DEFAULT 0, notes TEXT, decided_by TEXT, decided_utc TEXT, created_utc TEXT);
+CREATE TABLE IF NOT EXISTS observation_photos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, observation_id INTEGER NOT NULL, path TEXT NOT NULL, content_type TEXT, bytes INTEGER,
+  uploaded_by INTEGER, uploaded_utc TEXT);
+ALTER TABLE observations ADD COLUMN sampling_method TEXT;
+ALTER TABLE observations ADD COLUMN anopheles_larvae_count INTEGER;
+ALTER TABLE interventions ADD COLUMN habitat_suitability TEXT;
+ALTER TABLE interventions ADD COLUMN protocol_status TEXT;
+ALTER TABLE interventions ADD COLUMN decision_reason TEXT;
+ALTER TABLE missions ADD COLUMN kind TEXT NOT NULL DEFAULT 'inspection';
+ALTER TABLE missions ADD COLUMN flight_result TEXT;
+ALTER TABLE missions ADD COLUMN decision_note TEXT;
+"""),
 ]
 
 

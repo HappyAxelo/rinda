@@ -10,7 +10,7 @@ const ACTION = {
 };
 
 export async function openSite(id, date, h, st) {
-  drawer.open(`Monitoring point <span class="mono">${esc(id)}</span>`, '<div class="skeleton" style="height:120px"></div><div class="skeleton" style="height:240px"></div>');
+  drawer.open(`Technical forecast evidence · <span class="mono">${esc(id)}</span>`, '<div class="skeleton" style="height:120px"></div><div class="skeleton" style="height:240px"></div>');
   let s, ex, meta;
   try {
     [s, ex, meta] = await Promise.all([api.get(`/api/site/${id}`), api.get(`/api/explain?site=${id}&date=${date}&h=${h}`), api.get(`/api/forecast/meta?h=${h}&date=${date}`)]);
@@ -27,8 +27,8 @@ export async function openSite(id, date, h, st) {
   body.innerHTML = `
     ${meta.status === 'stale' ? `<div class="note crit" role="alert"><b>Historical forecast.</b> Issued ${meta.age_days} days ago; not guidance for today.</div>` : ''}
     <div class="grid g-3">
-      <div><div class="kpi" style="padding:0"><div class="lbl">Verification priority</div><div style="margin-top:8px">${cat ? catTag(cat) : '–'}</div><div class="meta">${cat ? esc(CAT_LABEL[cat]) : 'No forecast for this point on this issue'}</div></div></div>
-      <div><div class="kpi" style="padding:0"><div class="lbl">Probability of new water</div><div class="val">${fc ? fc.probability.toFixed(3) : '–'}</div><div class="meta">Calibrated · uncertainty ${fc ? fc.uncertainty_band : '–'}</div></div></div>
+      <div><div class="kpi" style="padding:0"><div class="lbl">Research-only forecast</div><div style="margin-top:8px">${cat ? catTag(cat) : '–'}</div><div class="meta">${cat ? esc(CAT_LABEL[cat]) : 'No forecast for this point on this issue'}</div></div></div>
+      <div><div class="kpi" style="padding:0"><div class="lbl">Prediction score</div><div class="val">${fc ? fc.probability.toFixed(3) : '–'}</div><div class="meta">Calibrated · uncertainty ${fc ? fc.uncertainty_band : '–'}</div></div></div>
       <div><div class="kpi" style="padding:0"><div class="lbl">Radar outcome</div><div style="margin-top:8px">${outcome}</div><div class="meta">Checked ${meta.valid_window[0]} – ${meta.valid_window[1]}</div></div></div>
     </div>
     <section class="card"><div class="card-h"><h3>Recommended action</h3><span class="sub">per operational rules ${esc(st?.boot?.rules_version || '')}</span></div>
@@ -98,7 +98,7 @@ export async function openSite(id, date, h, st) {
     chart('sDrv', {
       grid: { left: 170, right: 20, top: 8, bottom: 20 },
       tooltip: { trigger: 'item', formatter: (p) => `<b class="mono">${d[p.dataIndex].feature}</b><br>value ${d[p.dataIndex].value == null ? 'missing' : d[p.dataIndex].value.toFixed(2)}<br>contribution ${p.value.toFixed(3)}` },
-      xAxis: { type: 'value' }, yAxis: { type: 'category', data: d.map((x) => x.feature), axisLabel: { fontFamily: 'IBM Plex Mono', fontSize: 10.5 } },
+      xAxis: { type: 'value' }, yAxis: { type: 'category', data: d.map((x) => x.feature), axisLabel: { fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 10.5 } },
       series: [{ type: 'bar', barWidth: 10, data: d.map((x) => ({ value: x.contribution, itemStyle: { color: series(FAMILY_COLOR[x.family] || 5), borderRadius: x.contribution >= 0 ? [0, 4, 4, 0] : [4, 0, 0, 4] } })) }],
     });
   }

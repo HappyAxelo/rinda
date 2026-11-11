@@ -15,20 +15,23 @@ Rules enforced here, not only in the interface:
 from __future__ import annotations
 
 import io
+import json
 import math
+import os
 from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
 from typing import Literal
 
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field, field_validator
 
 import ops
 import programme
 from data import haversine, store
 from db import now, tx
+from engine import ROOT, VAR
 from rules import alerts_for, category, rules
 from security import User, current_user, require, user_names
 
@@ -42,6 +45,24 @@ SPECIES = ["an_gambiae_sl", "an_arabiensis", "an_funestus", "an_other", "culicin
 STAGES = ["early_instar", "late_instar"]
 PERMANENCE = ["permanent", "semi_permanent", "temporary"]
 SUN = ["sunlit", "partly_shaded", "shaded"]
+PROTOCOL_PATH = ROOT / "config" / "protocol_settings.json"
+PHOTOS = VAR / "photos"
+PHOTO_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+PHOTO_MAGIC = {".jpg": bytes([0xFF, 0xD8, 0xFF]), ".png": bytes([0x89]) + b"PNG", ".webp": b"RIFF"}
+MAX_PHOTO = 5 * 1024 * 1024
+
+
+def protocol() -> dict:
+    """Protocol settings awaiting RBC approval, read on each call."""
+    return json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"))
+
+
+def protocol_public() -> dict:
+    p = protocol()
+    return {"status": p["status"], "approved_by": p["approved_by"], "approved_protocols": p["approved_protocols"],
+            "intervention": p["intervention"], "habitat_suitability_options": p["habitat_suitability_options"],
+            "sampling_methods": p["sampling_methods"],
+            "label": "Awaiting approval" if p["status"] != "approved" else "Approved"}
 
 
 def _demo(u: User) -> int:
@@ -169,6 +190,8 @@ class ObservationIn(BaseModel):
     larvae_present: Sampled
     dips: int | None = Field(default=None, ge=0, le=500)
     larvae_count: int | None = Field(default=None, ge=0, le=100_000)
+    anopheles_larvae_count: int | None = Field(default=None, ge=0, le=100_000)
+    sampling_method: str | None = Field(default=None, max_length=40)
     anopheles_present: Literal["yes", "no", "not_identified"] = "not_identified"
     species: list[str] = []
     stages: list[str] = []
@@ -208,6 +231,12 @@ def _quality(o: ObservationIn, site) -> tuple[list[str], list[str]]:
         errors.append("Anopheles presence needs larvae_present = yes.")
     if o.water_present == "no" and o.larvae_present == "yes":
         errors.append("Larvae recorded where no water was present.")
+    if o.sampling_method and o.sampling_method not in protocol()["sampling_methods"]:
+        errors.append(f"sampling_method must be one of {', '.join(protocol()['sampling_methods'])}.")
+    if o.anopheles_larvae_count is not None and o.larvae_count is not None and o.anopheles_larvae_count > o.larvae_count:
+        errors.append("Anopheles larvae cannot outnumber all larvae counted.")
+    if (o.anopheles_larvae_count or 0) > 0 and o.anopheles_present != "yes":
+        errors.append("An Anopheles count above zero needs Anopheles = present.")
     if o.pupae_present != "yes" and (o.pupae_count or 0) > 0:
         errors.append("A pupal count above zero needs pupae_present = yes.")
     if o.lat is None or o.lon is None:
@@ -264,13 +293,14 @@ def create_observation(o: ObservationIn, u: User = Depends(require("write:observ
             "INSERT INTO observations (client_uuid, task_id, site_id, lat, lon, gps_accuracy_m, observed_at, "
             "observer_id, water_present, habitat_type, larvae_present, dips, larvae_count, anopheles_present, "
             "species, stages, pupae_present, pupae_count, water_depth_cm, vegetation_cover_pct, notes, "
-            "quality_flags, status, created_utc, demo, habitat_permanence, sun_exposure, distance_to_house_m) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "quality_flags, status, created_utc, demo, habitat_permanence, sun_exposure, distance_to_house_m, "
+            "sampling_method, anopheles_larvae_count) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (o.client_uuid, o.task_id, o.site_id, o.lat, o.lon, o.gps_accuracy_m, o.observed_at, u.id,
              o.water_present, o.habitat_type, o.larvae_present, o.dips, o.larvae_count, o.anopheles_present,
              ",".join(o.species), ",".join(o.stages), o.pupae_present, o.pupae_count, o.water_depth_cm,
              o.vegetation_cover_pct, o.notes, ",".join(flags), status, now(), _demo(u),
-             o.habitat_permanence, o.sun_exposure, o.distance_to_house_m))
+             o.habitat_permanence, o.sun_exposure, o.distance_to_house_m, o.sampling_method, o.anopheles_larvae_count))
         oid = cur.lastrowid
         if o.new_habitat:
             c.execute("UPDATE habitats SET first_observation_id=? WHERE code=?", (oid, o.site_id))
@@ -283,7 +313,7 @@ def create_observation(o: ObservationIn, u: User = Depends(require("write:observ
 
 
 class ReviewIn(BaseModel):
-    decision: Literal["verified", "needs_review", "rejected"]
+    decision: Literal["verified", "needs_review", "returned", "rejected"]
     comment: str = Field(default="", max_length=1000)
 
 
@@ -299,7 +329,16 @@ def review_observation(oid: int, b: ReviewIn, u: User = Depends(require("review:
             raise HTTPException(422, "Give a reason when an observation is not verified.")
         c.execute("UPDATE observations SET status=?, reviewer_id=?, review_comment=?, reviewed_utc=? WHERE id=?",
                   (b.decision, u.id, b.comment, now(), oid))
-    ops.audit(u.email, "observation.review", f"O{oid} -> {b.decision}")
+        if b.decision == "verified" and o["larvae_present"] in ("yes", "no"):
+            # one standard sample record per verified dipping visit, linked to its observation and task
+            names = user_names()
+            c.execute("INSERT OR IGNORE INTO entomological_samples (source, observation_id, site_id, task_id, lat, lon, sample_date, collector, "
+                      "sampling_method, dips, water_present, larvae_present, anopheles_larvae_count, pupae_count, species, sample_type, provenance, demo, dedupe_key) "
+                      "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                      ("rinda", oid, o["site_id"], o["task_id"], o["lat"], o["lon"], o["observed_at"][:10], names.get(o["observer_id"]),
+                       o["sampling_method"], o["dips"], o["water_present"], o["larvae_present"], o["anopheles_larvae_count"], o["pupae_count"],
+                       o["species"], "larval", "DEMONSTRATION" if o["demo"] else "FIELD", o["demo"], f"rinda-obs-{oid}"))
+    ops.audit(u.email, "observation.review", f"O{oid} site={o['site_id']} -> {b.decision}")
     return {"ok": True}
 
 
@@ -317,6 +356,8 @@ def _obs_rows(where: str = "1=1", args: tuple = ()) -> list[dict]:
         r["larvae_per_dip"] = (round(r["larvae_count"] / r["dips"], 2)
                                if r["dips"] and r["larvae_count"] is not None and r["larvae_present"] == "yes"
                                else (0.0 if r["larvae_present"] == "no" else None))
+        r["anopheles_per_dip"] = (round(r["anopheles_larvae_count"] / r["dips"], 2)
+                                  if r["dips"] and r.get("anopheles_larvae_count") is not None else None)
     return rows
 
 
@@ -343,11 +384,22 @@ class AuthoriseIn(BaseModel):
     product: str = Field(default="", max_length=200)
     planned_dose: str = Field(default="", max_length=200)
     protocol_ref: str = Field(min_length=3, max_length=200)
+    habitat_suitability: str | None = None
 
 
 def _eligible(o) -> bool:
-    return o["status"] == "verified" and (o["larvae_present"] == "yes" or
-                                         (o["water_present"] == "yes" and o["larvae_present"] == "not_sampled"))
+    """Evidence needed before a supervisor may decide. Settings are pending RBC approval."""
+    p = protocol()["intervention"]
+    if o["status"] != "verified":
+        return False
+    if o["larvae_present"] == "yes":
+        if p["require_anopheles_confirmation"] and o["anopheles_present"] != "yes":
+            return False
+        thr = p["minimum_larvae_per_dip"]
+        if thr is not None and (not o["dips"] or (o["larvae_count"] or 0) / o["dips"] < float(thr)):
+            return False
+        return True
+    return bool(p["accept_water_without_larvae_sample"]) and o["water_present"] == "yes" and o["larvae_present"] == "not_sampled"
 
 
 @router.post("/interventions", status_code=201)
@@ -360,15 +412,93 @@ def authorise(b: AuthoriseIn, u: User = Depends(require("authorize:intervention"
         if not o:
             raise HTTPException(404, "Unknown observation.")
         if not _eligible(o):
-            raise HTTPException(409, "Interventions need a verified observation with larvae present "
-                                     "(or water present and larvae not yet sampled). A forecast alone cannot authorise treatment.")
+            raise HTTPException(409, "Interventions need a verified field observation with larvae found. "
+                                     "A forecast alone cannot authorise treatment.")
+        opts = protocol()["habitat_suitability_options"]
+        if b.habitat_suitability not in opts:
+            raise HTTPException(422, f"Record the habitat suitability assessment: one of {', '.join(opts)}.")
+        if b.habitat_suitability in ("not_suitable", "needs_second_visit"):
+            raise HTTPException(409, "This habitat was assessed as not suitable for treatment now. Record the decision as rejected instead.")
+        if b.method == "bti_drone" and b.habitat_suitability != "suitable_for_drone":
+            raise HTTPException(409, "Drone application needs a habitat assessed as suitable for drone treatment.")
+        if c.execute("SELECT 1 FROM interventions WHERE observation_id=? AND status IN ('authorized','performed')", (o["id"],)).fetchone():
+            raise HTTPException(409, "This observation already has an open intervention.")
         cur = c.execute("INSERT INTO interventions (site_id, observation_id, method, product, planned_dose, protocol_ref, "
-                        "status, authorized_by, authorized_utc, demo) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                        "status, authorized_by, authorized_utc, demo, habitat_suitability, protocol_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                         (o["site_id"], o["id"], b.method, b.product, b.planned_dose, b.protocol_ref, "authorized",
-                         u.id, now(), _demo(u)))
+                         u.id, now(), _demo(u), b.habitat_suitability, protocol()["status"]))
         iid = cur.lastrowid
     ops.audit(u.email, "intervention.authorize", f"I{iid} site={o['site_id']} O{o['id']} {b.method} protocol={b.protocol_ref}")
-    return {"id": iid, "status": "authorized"}
+    return {"id": iid, "status": "authorized", "protocol_status": protocol()["status"]}
+
+
+class RejectIn(BaseModel):
+    observation_id: int
+    reason: str = Field(min_length=5, max_length=1000)
+    habitat_suitability: str | None = None
+
+
+@router.post("/interventions/reject", status_code=201)
+def reject_intervention(b: RejectIn, u: User = Depends(require("authorize:intervention"))):
+    """A supervisor's decision not to treat, kept as a record with its reason."""
+    with tx() as c:
+        o = c.execute("SELECT * FROM observations WHERE id=?", (b.observation_id,)).fetchone()
+        if not o:
+            raise HTTPException(404, "Unknown observation.")
+        if o["status"] != "verified":
+            raise HTTPException(409, "Only a verified observation can be assessed for intervention.")
+        cur = c.execute("INSERT INTO interventions (site_id, observation_id, method, protocol_ref, status, authorized_by, authorized_utc, demo, "
+                        "habitat_suitability, protocol_status, decision_reason) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                        (o["site_id"], o["id"], "none", "not applicable", "rejected", u.id, now(), _demo(u), b.habitat_suitability,
+                         protocol()["status"], b.reason))
+    ops.audit(u.email, "intervention.reject", f"I{cur.lastrowid} site={o['site_id']} O{o['id']}: {b.reason}")
+    return {"id": cur.lastrowid, "status": "rejected"}
+
+
+@router.get("/protocol")
+def get_protocol(u: User = Depends(require("read:forecast"))):
+    return protocol_public()
+
+
+# ------------------------------------------------------------------- photos
+@router.post("/observations/{oid}/photos", status_code=201)
+async def add_photo(oid: int, file: UploadFile = File(...), u: User = Depends(require("write:observation"))):
+    with tx() as c:
+        o = c.execute("SELECT observer_id FROM observations WHERE id=?", (oid,)).fetchone()
+        n = c.execute("SELECT COUNT(*) FROM observation_photos WHERE observation_id=?", (oid,)).fetchone()[0]
+    if not o:
+        raise HTTPException(404, "Unknown observation.")
+    if o["observer_id"] != u.id and not u.can("review:observation"):
+        raise HTTPException(403, "Only the observer or a supervisor can add photographs.")
+    if n >= 6:
+        raise HTTPException(409, "An observation holds at most six photographs.")
+    ext = PHOTO_TYPES.get(file.content_type or "")
+    if not ext:
+        raise HTTPException(422, "Photographs must be JPEG, PNG or WebP.")
+    raw = await file.read(MAX_PHOTO + 1)
+    if len(raw) > MAX_PHOTO:
+        raise HTTPException(413, "Photographs are limited to 5 MB.")
+    if not raw.startswith(PHOTO_MAGIC[ext]):
+        raise HTTPException(422, "The file is not a valid image of the stated type.")
+    PHOTOS.mkdir(parents=True, exist_ok=True)
+    name = f"O{oid}_{os.urandom(8).hex()}{ext}"
+    (PHOTOS / name).write_bytes(raw)
+    with tx() as c:
+        cur = c.execute("INSERT INTO observation_photos (observation_id, path, content_type, bytes, uploaded_by, uploaded_utc) VALUES (?,?,?,?,?,?)",
+                        (oid, name, file.content_type, len(raw), u.id, now()))
+    ops.audit(u.email, "observation.photo", f"O{oid} photo {cur.lastrowid}")
+    return {"id": cur.lastrowid}
+
+
+@router.get("/photos/{pid}")
+def get_photo(pid: int, u: User = Depends(require("read:field"))):
+    with tx() as c:
+        p = c.execute("SELECT p.*, o.observer_id FROM observation_photos p JOIN observations o ON o.id=p.observation_id WHERE p.id=?", (pid,)).fetchone()
+    if not p:
+        raise HTTPException(404, "Unknown photograph.")
+    if p["observer_id"] != u.id and not (u.can("review:observation") or u.can("plan:mission")):
+        raise HTTPException(403, "You can see photographs of your own observations only.")
+    return FileResponse(PHOTOS / p["path"], media_type=p["content_type"], headers={"Cache-Control": "private, no-store"})
 
 
 class PerformIn(BaseModel):
@@ -405,6 +535,8 @@ def followup(iid: int, b: FollowUpIn, u: User = Depends(require("review:observat
             raise HTTPException(404, "Unknown intervention or observation.")
         if i["status"] != "performed":
             raise HTTPException(409, "Record the treatment as performed before closing it with a follow-up.")
+        if o["larvae_present"] == "not_sampled":
+            raise HTTPException(422, "A follow-up must include dipping. Not sampled is not a finding.")
         if o["site_id"] != i["site_id"] or o["status"] != "verified" or o["observed_at"] <= (i["performed_at"] or ""):
             raise HTTPException(422, "Follow-up must be a verified observation at the same site, made after treatment.")
         c.execute("UPDATE interventions SET status='closed', followup_observation_id=?, outcome=?, closed_utc=? WHERE id=?",
@@ -522,6 +654,6 @@ def site_field_history(site_id: str) -> dict:
             "SELECT id, observed_at, water_present, larvae_present, anopheles_present, larvae_count, dips, status, demo "
             "FROM observations WHERE site_id=? ORDER BY observed_at DESC LIMIT 5", (site_id,))]
         iv = [dict(r) for r in c.execute(
-            "SELECT id, method, status, authorized_utc, performed_at, outcome, demo FROM interventions "
+            "SELECT id, method, status, authorized_utc, performed_at, outcome, demo, decision_reason FROM interventions "
             "WHERE site_id=? ORDER BY id DESC LIMIT 5", (site_id,))]
     return {"observations": obs, "interventions": iv}

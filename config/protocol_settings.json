@@ -1,0 +1,15 @@
+{
+  "_doc": "Settings that an approved national protocol must decide. Every value here is PENDING: the interface shows these as awaiting approval. No treatment threshold is invented.",
+  "status": "awaiting_approval",
+  "approved_by": null,
+  "approved_protocols": [],
+  "intervention": {
+    "accept_water_without_larvae_sample": false,
+    "require_anopheles_confirmation": false,
+    "minimum_larvae_per_dip": null,
+    "follow_up_interval_days": null,
+    "note": "Until RBC approves a protocol, RINDA asks for a verified observation with larvae found, a recorded habitat suitability assessment, a protocol reference and a supervisor decision."
+  },
+  "habitat_suitability_options": ["suitable_for_drone", "suitable_for_ground", "not_suitable", "needs_second_visit"],
+  "sampling_methods": ["standard_dipper_350ml", "pipette", "net", "other"]
+}

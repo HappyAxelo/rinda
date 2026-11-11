@@ -207,8 +207,8 @@ def plan(targets: pd.DataFrame, a: Aircraft, t: Treatment, base: tuple[float, fl
         c = sortie_cost(rows, lp)
         seq = [rows.iloc[k - 1] for k in c["order"][1:-1]]
         wps = [{"seq": n + 1, "site_id": r.site_id, "lat": float(r.latitude), "lon": float(r.longitude),
-                "action": r.action, "probability": float(r.probability),
-                "decision": r.conformal_decision, "priority": float(r.priority_score)}
+                "action": r.action, "probability": None if pd.isna(r.probability) else float(r.probability),
+                "decision": r.conformal_decision, "priority": None if pd.isna(r.priority_score) else float(r.priority_score)}
                for n, r in enumerate(seq)]
         spray_time = c["n_treat"] * work_s
         energy_wh = (p_tot * c["flight_s"] + a.p_spray_w * spray_time) / 3600

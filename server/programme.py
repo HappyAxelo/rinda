@@ -115,7 +115,7 @@ def me_indicators(weeks: int = Query(12, ge=1, le=104), demo: Literal["exclude",
     obs = _rows(f"SELECT o.*, t.alert_id, t.created_utc AS task_created, t.due_date FROM observations o "
                 f"LEFT JOIN tasks t ON t.id=o.task_id WHERE {where.replace('demo', 'o.demo')} AND substr(o.observed_at,1,10) >= ?", (s0,))
     tasks = _rows(f"SELECT * FROM tasks WHERE {where} AND substr(created_utc,1,10) >= ?", (s0,))
-    ivs = _rows(f"SELECT * FROM interventions WHERE {where} AND substr(authorized_utc,1,10) >= ?", (s0,))
+    ivs = _rows(f"SELECT * FROM interventions WHERE status != 'rejected' AND {where} AND substr(authorized_utc,1,10) >= ?", (s0,))
     habitats = _rows(f"SELECT * FROM habitats WHERE {where} AND substr(created_utc,1,10) >= ?", (s0,))
     alerts = _rows("SELECT * FROM alert_states WHERE substr(ts_utc,1,10) >= ?", (s0,))
     users = _rows(f"SELECT id, role, active, last_login_utc FROM users WHERE {where} AND active=1")
@@ -179,7 +179,7 @@ def me_indicators(weeks: int = Query(12, ge=1, le=104), demo: Literal["exclude",
     reviewed = [o for o in obs if o["reviewed_utc"]]
     quick = sum(1 for o in reviewed if (_dt(o["reviewed_utc"]) - _dt(o["created_utc"])).days <= 3)
     elig = [o for o in ver if o["larvae_present"] == "yes" or (o["water_present"] == "yes" and o["larvae_present"] == "not_sampled")]
-    authed = {i["observation_id"] for i in _rows(f"SELECT observation_id FROM interventions WHERE {where}")}
+    authed = {i["observation_id"] for i in _rows(f"SELECT observation_id FROM interventions WHERE status != 'rejected' AND {where}")}
     gps_ok = sum(1 for o in obs if o["lat"] is not None and (o["gps_accuracy_m"] or 0) <= 30)
     performed = [i for i in ivs if i["status"] in ("performed", "closed")]
     impl = [
@@ -258,9 +258,9 @@ def weekly(week: str | None, demo: str | None = None) -> dict:
     t_new = _rows(f"SELECT * FROM tasks WHERE {where} AND {in_wk('created_utc')}", (a, b))
     t_open_end = _rows(f"SELECT * FROM tasks WHERE {where} AND status IN ('assigned','in_progress') AND due_date <= ? "
                        f"AND substr(created_utc,1,10) <= ?", (b, b))
-    iv_auth = _rows(f"SELECT * FROM interventions WHERE {where} AND {in_wk('authorized_utc')}", (a, b))
-    iv_perf = _rows(f"SELECT * FROM interventions WHERE {where} AND {in_wk('performed_at')}", (a, b))
-    iv_closed = _rows(f"SELECT * FROM interventions WHERE {where} AND {in_wk('closed_utc')}", (a, b))
+    iv_auth = _rows(f"SELECT * FROM interventions WHERE status != 'rejected' AND {where} AND {in_wk('authorized_utc')}", (a, b))
+    iv_perf = _rows(f"SELECT * FROM interventions WHERE status != 'rejected' AND {where} AND {in_wk('performed_at')}", (a, b))
+    iv_closed = _rows(f"SELECT * FROM interventions WHERE status != 'rejected' AND {where} AND {in_wk('closed_utc')}", (a, b))
     reviews = _rows(f"SELECT status FROM observations WHERE {where} AND {in_wk('reviewed_utc')}", (a, b))
     habitats = _rows(f"SELECT * FROM habitats WHERE {where} AND {in_wk('created_utc')}", (a, b))
     alerts = _rows(f"SELECT * FROM alert_states WHERE {in_wk('ts_utc')}", (a, b))

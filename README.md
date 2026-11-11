@@ -1,12 +1,12 @@
-# RINDA · Vector Habitat Intelligence
+# RINDA · Vector Surveillance and Precision Larviciding
 
 [![ci](https://github.com/HappyAxelo/rinda/actions/workflows/ci.yml/badge.svg)](https://github.com/HappyAxelo/rinda/actions/workflows/ci.yml)
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/HappyAxelo/rinda)
 
-Forecast-to-flight operations console for larval source management. RINDA takes the
-7- and 14-day habitat-formation forecast from the Gikomero study and carries it through
-mission planning, onboard verification, treatment records, programme economics and
-bulletins. It is built for a national malaria programme (RBC Malaria & NTD Division,
+Vector surveillance and larviciding management console. One map brings together satellite,
+sensor, weather, entomological and operational records for the Gikomero pilot, and carries a
+location from first signal through inspection, review, treatment decision, drone mission and
+follow-up. The research forecast is one evidence layer; it never authorises treatment. It is built for a national malaria programme (RBC Malaria & NTD Division,
 district vector control officers, drone operators and analysts).
 
 *Rinda* is Kinyarwanda for "protect".
@@ -52,6 +52,10 @@ Tests: `pip install pytest httpx && pytest -q tests`.
 | `RINDA_DEMO` | 0 | Demonstration sign-in per role |
 | `RINDA_SECURE_COOKIES` | 0 | Set 1 behind HTTPS |
 | `RINDA_SMS_PROVIDER` | none | Name of a connected SMS/WhatsApp provider. Unset: the outbox only drafts messages |
+| `RINDA_TRAINING` | 1 | Set 0 to switch model training off (the hosted 512 MB plan) |
+| `RINDA_MAX_DATASET_MB` | 20 | Largest historical data file accepted |
+| `RINDA_CDSE_CLIENT_ID`, `RINDA_CDSE_CLIENT_SECRET` | none | Copernicus credentials. Unset: the connector fetches nothing |
+| `RINDA_METEO_URL`, `RINDA_METEO_TOKEN` | none | Meteo Rwanda access. Unset: the connector fetches nothing |
 | `PORT` | 7860 (Docker) | Listening port. |
 
 ## Deployment
@@ -93,7 +97,21 @@ an account creates is labelled DEMO. Operational deployments set `RINDA_DEMO=0` 
 | `docs/user-guide.md`, `docs/admin-guide.md` | Operating instructions |
 | `docs/backlog.md`, `docs/changes-2026-10-12.md`, `docs/readiness-assessment.md` | Plan, change record, readiness |
 | `docs/changes-2026-11-06.md` | Programme uptake: M&E, weekly report, DHIS2, habitats, offline shell, Kinyarwanda draft, roles, outbox |
+| `docs/changes-2026-11-10.md` | Rebuild: six modules, surveillance map, habitat dossier, historical data and training, connectors, what is done and what is not |
 | `docs/hosting-rbc.md`, `docs/data-sharing-agreement-template.md`, `docs/dpia-template.md` | Drafts for RBC ICT, legal and data-protection review |
+
+## The six modules (2026-11-10)
+
+| Module | Screens |
+|---|---|
+| National Situation Overview | Record counts, action queue, data freshness, area filters |
+| National Surveillance Map | Six evidence layers, habitat side panel, forecast table, issue summary, field network, habitat dossier |
+| Field Surveillance & Operations | Assignments, observation form (offline), review, treatment decisions, follow-up |
+| Drone Operations | Aircraft, missions, approval, exports, flight results; inspection planner; flight performance |
+| Monitoring, Impact & Reporting | Four indicator groups, CSV and PDF; RE-AIM, weekly report, DHIS2; bulletins; cost estimates |
+| Administration & Evidence | Users and system; data and models; model assurance; replay; scenario lab; evidence; provenance; help |
+
+The table below lists the earlier screens, all still present inside these modules.
 
 ## Modules and the research they answer
 
@@ -149,6 +167,12 @@ server/
   ops.py        SQLite record: missions, flight logs, telemetry, audit; economics
   bulletin.py   A4 bulletin renderer
   main.py       FastAPI app and static console
+  surveillance.py  overview, map layers, habitat dossier, model registry
+  geo.py        administrative areas from boundary files
+  connectors.py data sources, ingestion service, freshness
+  datasets.py   historical dataset upload, validation, versions
+  training.py   reproducible training (runs as its own process)
+  reporting.py  four-group indicators, CSV and PDF
 web/            console (HTML, CSS, ES modules); vendor/ holds ECharts 5.5.1 and Leaflet 1.9.4
 study/          frozen study bundle: mhf package, paper-run config, processed tables,
                 Sentinel-1 site series, weather record, outputs, reports, review statistics

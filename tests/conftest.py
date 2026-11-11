@@ -36,6 +36,16 @@ def client_as(role: str | None):
     return c
 
 
+@pytest.fixture(autouse=True)
+def _fresh_write_budget():
+    """The suite makes more writes and sign-ins a minute from one address than the
+    limits allow. Give each test its own budget; the limits themselves are still
+    tested inside a single test (test_login_rate_limited)."""
+    import security
+    security._hits.clear()
+    yield
+
+
 @pytest.fixture(scope="session")
 def roles(app):
     return {r: client_as(r) for r in ("viewer", "field_officer", "analyst", "supervisor", "admin")}

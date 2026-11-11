@@ -1,5 +1,4 @@
-import { api, disposeAll, drawer, toast, icon, fmt, esc, newScope, modal, banner } from './ui.js';
-import { openSite } from './site.js';
+import { api, disposeAll, drawer, toast, icon, fmt, esc, newScope, modal, banner, auditNote } from './ui.js';
 import { flushQueue, queued } from './offline.js';
 import { t, getLang, setLang } from './i18n.js';
 
@@ -9,47 +8,43 @@ export const state = {
   can(p) { return !!this.user?.permissions?.includes(p); },
 };
 
-const ROUTES = [
-  { group: 'Operations', items: [
-    ['overview', 'Situation Overview', 'overview'],
-    ['forecast', 'Habitat Forecast', 'forecast'],
-    ['field', 'Field Surveillance', 'clipboard', 'read:field'],
-    ['missions', 'Mission Planning', 'mission'],
-    ['flight', 'Flight Operations', 'flight'],
-  ] },
-  { group: 'Evidence', items: [
-    ['replay', 'Replay & Validation', 'replay'],
-    ['assurance', 'Model Assurance', 'assurance'],
-    ['scenario', 'Scenario Lab', 'scenario'],
-    ['network', 'Field Network', 'network'],
-  ] },
-  { group: 'Programme', items: [
-    ['programme', 'Monitoring & Reporting', 'clipboard', 'read:me'],
-    ['impact', 'Impact & Economics', 'impact'],
-    ['bulletins', 'Reports & Bulletins', 'bulletin'],
-    ['evidence', 'Programme Evidence', 'alignment'],
-    ['governance', 'Data & Provenance', 'governance'],
-    ['admin', 'Administration', 'shield', 'admin:system'],
-    ['help', 'Help & Glossary', 'help'],
-  ] },
+// Six modules. Each has tabs; a tab is [route, label, permission?]. Old routes stay valid.
+const MODULES = [
+  { key: 'overview', label: 'National Situation Overview', short: 'Overview', icon: 'dashboard', tabs: [['overview', 'Overview']] },
+  { key: 'map', label: 'National Surveillance Map', short: 'Surveillance map', icon: 'map', tabs: [
+    ['map', 'Map'], ['forecast', 'Forecast table'], ['issue', 'Forecast issue summary'], ['network', 'Field network'], ['dossier', 'Habitat dossier']] },
+  { key: 'field', label: 'Field Surveillance & Operations', short: 'Field operations', icon: 'cliplist', perm: 'read:field', tabs: [['field', 'Field workspace', 'read:field']] },
+  { key: 'drone', label: 'Drone Operations', short: 'Drone operations', icon: 'send', tabs: [
+    ['drone', 'Operations'], ['missions', 'Inspection flight planner'], ['flight', 'Flight performance']] },
+  { key: 'reports', label: 'Monitoring, Impact & Reporting', short: 'Reporting', icon: 'chart', tabs: [
+    ['reports', 'Indicators', 'read:me'], ['programme', 'RE-AIM, weekly report and DHIS2', 'read:me'], ['bulletins', 'Bulletins'], ['impact', 'Costs and planning estimates']] },
+  { key: 'admin', label: 'Administration & Evidence', short: 'Admin and evidence', icon: 'sliders', tabs: [
+    ['admin', 'Users and system', 'admin:system'], ['models', 'Data and models', 'read:models'], ['assurance', 'Model assurance'], ['replay', 'Historical replay'],
+    ['scenario', 'Scenario lab'], ['evidence', 'Programme evidence'], ['governance', 'Data provenance'], ['help', 'Help and glossary']] },
 ];
 const VIEWS = {
-  overview: () => import('./views/overview.js'), forecast: () => import('./views/forecast.js'),
-  field: () => import('./views/field.js'), missions: () => import('./views/missions.js'),
+  overview: () => import('./views/overview.js'), map: () => import('./views/map.js'), dossier: () => import('./views/dossier.js'),
+  forecast: () => import('./views/forecast.js'), issue: () => import('./views/issue.js'),
+  field: () => import('./views/field.js'), drone: () => import('./views/drone.js'), missions: () => import('./views/missions.js'),
   flight: () => import('./views/flight.js'), replay: () => import('./views/replay.js'),
   scenario: () => import('./views/scenario.js'), assurance: () => import('./views/assurance.js'),
-  network: () => import('./views/network.js'), impact: () => import('./views/impact.js'),
+  network: () => import('./views/network.js'), impact: () => import('./views/impact.js'), reports: () => import('./views/reports.js'),
   bulletins: () => import('./views/bulletins.js'), evidence: () => import('./views/evidence.js'),
-  governance: () => import('./views/governance.js'), admin: () => import('./views/admin.js'),
+  governance: () => import('./views/governance.js'), admin: () => import('./views/admin.js'), models: () => import('./views/models.js'),
   help: () => import('./views/help.js'), programme: () => import('./views/programme.js'),
 };
-const ROLE_HOME = { viewer: 'overview', field_officer: 'field', analyst: 'replay', supervisor: 'overview', programme_manager: 'programme', admin: 'admin' };
+// Pages that read the forecast issue selected in the top bar.
+const FORECAST_ROUTES = new Set(['map', 'forecast', 'issue', 'missions', 'replay', 'scenario', 'bulletins', 'field', 'impact']);
+const ROLE_HOME = { viewer: 'overview', field_officer: 'field', analyst: 'map', supervisor: 'overview', programme_manager: 'overview', admin: 'overview' };
+
+const allowed = (tab) => !tab[2] || state.can(tab[2]);
+const tabsOf = (m) => m.tabs.filter(allowed);
+const moduleOf = (route) => MODULES.find((m) => m.tabs.some((x) => x[0] === route));
 
 function navHTML() {
-  return ROUTES.map((g) => {
-    const items = g.items.filter((i) => !i[3] || state.can(i[3]));
-    return `<div class="nav-group">${t(g.group)}</div>` + items.map(([k, label, ic]) =>
-      `<a class="nav-link" href="#/${k}" data-route="${k}">${icon(ic)}<span>${t(label)}</span>${k === 'forecast' ? '<span class="badge hot" id="navAlerts" hidden></span>' : ''}${k === 'field' ? '<span class="badge" id="navTasks" hidden></span>' : ''}</a>`).join('');
+  return MODULES.filter((m) => (!m.perm || state.can(m.perm)) && tabsOf(m).length).map((m) => {
+    const first = tabsOf(m)[0][0];
+    return `<a class="nav-link" href="#/${first}" data-module="${m.key}" title="${esc(t(m.label))}">${icon(m.icon)}<span>${t(m.label)}</span>${m.key === 'field' ? '<span class="badge" id="navTasks" hidden></span>' : ''}</a>`;
   }).join('');
 }
 
@@ -57,35 +52,43 @@ let current = null;
 async function route() {
   const key = (location.hash.replace(/^#\/?/, '').split('?')[0]) || ROLE_HOME[state.user?.role] || 'overview';
   let name = VIEWS[key] ? key : 'overview';
-  const item = ROUTES.flatMap((g) => g.items).find((i) => i[0] === name);
-  if (item?.[3] && !state.can(item[3])) {
-    toast(state.user?.authenticated ? 'Your role does not include that module.' : 'Sign in to open that module.', true);
-    name = 'overview';
+  let mod = moduleOf(name);
+  const tab = mod.tabs.find((x) => x[0] === name);
+  if (!allowed(tab)) {
+    toast(state.user?.authenticated ? 'Your role does not include that page.' : 'Sign in to open that page.', true);
+    name = 'overview'; mod = moduleOf(name);
   }
   document.querySelectorAll('.nav-link').forEach((a) => {
-    if (a.dataset.route === name) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    if (a.dataset.module === mod.key) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
-  const grp = ROUTES.find((g) => g.items.some((i) => i[0] === name));
-  document.getElementById('crumbGroup').textContent = t(grp.group);
-  document.getElementById('crumbView').textContent = t(grp.items.find((i) => i[0] === name)[1]);
-  document.title = `${grp.items.find((i) => i[0] === name)[1]} · RINDA`;
+  const label = mod.tabs.find((x) => x[0] === name)[1];
+  document.getElementById('crumbGroup').textContent = t(mod.label);
+  document.getElementById('crumbView').textContent = label;
+  document.title = `${label} · RINDA`;
+  const sub = document.getElementById('subnav');
+  const tabs = tabsOf(mod).filter((x) => x[0] !== 'dossier' || name === 'dossier');
+  sub.hidden = tabs.length < 2;
+  sub.innerHTML = tabs.map(([k, l]) => `<a href="#/${k}" ${k === name ? 'aria-current="page"' : ''}>${esc(l)}</a>`).join('');
+  // field officers never act on forecast alerts, so their workspace skips the forecast controls
+  document.getElementById('fcCtx').hidden = !FORECAST_ROUTES.has(name) || (name === 'field' && !state.can('act:alert'));
   document.getElementById('nav').classList.remove('open');
+  renderBanners(name);
   drawer.close();
   newScope();
   const view = document.getElementById('view');
   disposeAll();
   current?.destroy?.();
-  view.innerHTML = '<div class="skeleton" style="height:36px;width:320px;margin-bottom:18px"></div><div class="grid g-4">' + '<div class="skeleton" style="height:110px"></div>'.repeat(4) + '</div>';
+  view.innerHTML = '<div class="skeleton" style="height:34px;width:300px;margin-bottom:20px"></div><div class="stats">' + '<div class="skeleton" style="height:112px;border-radius:12px"></div>'.repeat(4) + '</div>';
   try {
-    const mod = await VIEWS[name]();
-    current = mod;
-    await mod.render(view, state);
+    const m = await VIEWS[name]();
+    current = m;
+    await m.render(view, state);
     view.focus({ preventScroll: true });
   } catch (e) {
     if (e.cancelled) return;
     console.error(e);
     view.innerHTML = `<div class="note crit" role="alert"><b>This page could not load.</b> ${esc(e.message)}
-      <div style="margin-top:8px"><button class="btn sm" id="retryView">Try again</button></div></div>`;
+      <div style="margin-top:10px"><button class="btn sm" id="retryView">Try again</button></div></div>`;
     document.getElementById('retryView')?.addEventListener('click', route);
   }
 }
@@ -95,33 +98,34 @@ export const params = () => new URLSearchParams(location.hash.split('?')[1] || '
 // ---------------------------------------------------------------- banners
 async function refreshMeta() {
   try { state.meta = await api.get(`/api/forecast/meta?h=${state.h}&date=${state.date}`); } catch (e) { if (!e.cancelled) state.meta = null; }
-  renderBanners();
 }
 
-function renderBanners() {
+function renderBanners(name) {
   const m = state.meta;
   const out = [];
   if (getLang() === 'rw') {
-    out.push(banner('warn', `${icon('info')}<div><b>Ikinyarwanda: ${t('Draft translation')}.</b> Field screens and navigation are in draft Kinyarwanda awaiting review with RBC and district teams; other pages stay in English. Report wrong or unclear terms through Help &amp; Glossary → Feedback.</div>`));
+    out.push(banner('warn', `${icon('info')}<div><b>Ikinyarwanda: ${t('Draft translation')}.</b> Navigation and field screens are in draft Kinyarwanda that RBC and district teams have not yet reviewed. Other pages stay in English.</div>`));
   }
   if (state.offlineBoot) {
-    out.push(banner('warn', `${icon('alert')}<div><b>Offline.</b> Showing the copy saved on this device the last time it was online. New observations are queued and sent when the connection returns.</div>`));
+    out.push(banner('warn', `${icon('alert')}<div><b>Offline.</b> Showing the copy saved on this device the last time it was online. New observations are kept on this device and sent when the connection returns.</div>`));
   }
-  if (state.boot.demo) {
-    out.push(banner('warn', `${icon('info')}<div><b>Demonstration environment.</b> Forecasts are the real study archive; anything you create here is a labelled demonstration record.</div>`));
+  if (state.boot?.demo && name !== 'map') {
+    out.push(banner('warn', `${icon('info')}<div><b>Demonstration environment.</b> Anything you create here is stored and labelled as a demonstration record.</div>`));
+  }
+  if (FORECAST_ROUTES.has(name) && name !== 'field') {
+    out.push(auditNote(state.boot?.audit));
+    if (m && name !== 'map') {
+      const stale = m.warnings.find((w) => w.code === 'stale_forecast');
+      if (stale) out.push(banner('critical', `${icon('clock')}<div><b>Forecast stale.</b> ${esc(stale.message)} Latest issue in the archive: ${fmt.date(m.latest_issue)}. No current satellite or weather inputs are connected, so no new forecast is being produced.</div>`));
+      const lh = m.warnings.find((w) => w.code === 'long_horizon');
+      if (lh) out.push(banner('warn', `${icon('info')}<div>${esc(lh.message)}</div>`));
+    }
   }
   if (m) {
-    const ms = m.model_status;
-    const stale = m.warnings.find((w) => w.code === 'stale_forecast');
-    if (stale) out.push(banner('critical', `${icon('alert')}<div><b>Stale forecast.</b> ${esc(stale.message)} Latest available issue: ${fmt.date(m.latest_issue)}. No forecast is being produced because no current satellite or weather inputs are connected.</div>`));
-    out.push(banner('info', `${icon('shield')}<div><b>${esc(ms.label)}.</b> Outputs prioritise field inspection only; they never authorise treatment.
-      <details><summary>Why</summary><ul style="margin:6px 0 0;padding-left:18px">${ms.reasons.map((r) => `<li>${esc(r)}</li>`).join('')}</ul></details></div>`));
-    const lh = m.warnings.find((w) => w.code === 'long_horizon');
-    if (lh) out.push(banner('warn', `${icon('info')}<div>${esc(lh.message)}</div>`));
     const fc = document.getElementById('freshChip');
     fc.hidden = false;
     fc.className = 'chip ' + (m.status === 'stale' ? 'bad' : 'ok');
-    fc.lastChild.textContent = m.status === 'stale' ? `Stale · ${m.age_days} d old` : 'Current';
+    fc.lastChild.textContent = m.status === 'stale' ? `Forecast stale · ${m.age_days} d old` : 'Current';
     fc.title = `Issued ${m.issue_date}; valid ${m.valid_window[0]} to ${m.valid_window[1]}`;
   }
   document.getElementById('banners').innerHTML = out.join('');
@@ -144,15 +148,15 @@ function authDialog() {
   if (u?.authenticated) {
     const d = modal('Account', `
       <dl class="dl"><dt>Name</dt><dd>${esc(u.name)}</dd><dt>Role</dt><dd>${esc(u.role_label)}<br><span class="hint">${esc(u.role_title || '')} <i>(proposed RBC mapping)</i></span></dd>${u.district ? `<dt>District</dt><dd>${esc(u.district)}</dd>` : ''}<dt>Email</dt><dd class="mono">${esc(u.email)}</dd>${u.demo ? '<dt>Account</dt><dd>Demonstration</dd>' : ''}</dl>
-      <p style="margin:0;font-size:12px;color:var(--ink-3)">Permissions: ${u.permissions.map((p) => `<span class="badge">${p}</span>`).join(' ')}</p>
-      ${u.demo ? '' : `<details><summary style="cursor:pointer">Change password</summary><form id="pwForm" class="form" style="margin-top:10px">
+      <details class="tech"><summary>Permissions</summary><div>${u.permissions.map((p) => `<span class="badge">${p}</span>`).join(' ')}</div></details>
+      ${u.demo ? '' : `<details class="tech"><summary>Change password</summary><div><form id="pwForm" class="form" style="margin-top:10px">
         <div class="field"><label for="pwC">Current password</label><input id="pwC" type="password" autocomplete="current-password" required></div>
         <div class="field"><label for="pwN">New password</label><input id="pwN" type="password" autocomplete="new-password" minlength="12" required><span class="hint">At least 12 characters, upper- and lower-case letters and a digit.</span></div>
-        <button class="btn primary">Update password</button></form></details>`}
+        <button class="btn primary">Update password</button></form></div></details>`}
       <div class="actions"><button class="btn" id="signOut">${icon('x')}Sign out</button></div>`);
     d.querySelector('#signOut').addEventListener('click', async () => {
       await api.post('/api/auth/logout');
-      try { await caches.delete('rinda-api-v1'); } catch (e) { /* no cache storage */ }
+      try { await caches.delete('rinda-api-v2'); } catch (e) { /* no cache storage */ }
       d.close(); await afterAuth('Signed out');
     });
     d.querySelector('#pwForm')?.addEventListener('submit', async (e) => {
@@ -166,15 +170,14 @@ function authDialog() {
     <form id="loginForm" class="form">
       <div class="field"><label for="lgE">Email</label><input id="lgE" type="email" autocomplete="username" required></div>
       <div class="field"><label for="lgP">Password</label><input id="lgP" type="password" autocomplete="current-password" required></div>
-      <p id="lgErr" role="alert" style="margin:0;color:var(--crit);font-size:12.5px"></p>
+      <p id="lgErr" role="alert" style="margin:0;color:var(--crit);font-size:13px"></p>
       <button class="btn primary">Sign in</button>
     </form>
-    ${u?.demo_enabled ? `<div class="fieldset" style="border:1px solid var(--line);border-radius:6px;padding:12px">
-      <b style="font-size:12.5px">Explore with a demonstration role</b>
-      <p style="margin:4px 0 10px;font-size:12px;color:var(--ink-3)">No password. Everything you create is stored as a demonstration record.</p>
-      <div class="actions">${u.roles.map((r) => `<button class="btn sm" data-demo="${r.role}" title="${esc(r.title || '')}">${r.label}</button>`).join('')}</div>
-      <p style="margin:8px 0 0;font-size:11.5px;color:var(--ink-3)">Roles map to RBC jobs (proposed): ${u.roles.map((r) => `<b>${esc(r.label)}</b>: ${esc(r.title || '')}`).join('; ')}.</p></div>` : ''}
-    <p style="margin:0;font-size:11.5px;color:var(--ink-3)">Accounts are issued by your institution's RINDA administrator.${u?.public_read ? ' Forecasts and validation can be viewed without signing in.' : ''}</p>`);
+    ${u?.demo_enabled ? `<div class="fieldset">
+      <b style="font-size:13.5px">Explore with a demonstration role</b>
+      <p style="margin:4px 0 10px;font-size:12.5px;color:var(--ink-3)">No password. Everything you create is stored as a demonstration record.</p>
+      <div class="actions">${u.roles.map((r) => `<button class="btn sm" data-demo="${r.role}" title="${esc(r.title || '')}">${r.label}</button>`).join('')}</div></div>` : ''}
+    <p class="hint" style="margin:0">Accounts are issued by your institution's RINDA administrator.${u?.public_read ? ' Forecast maps and validation can be viewed without signing in; field records cannot.' : ''}</p>`);
   d.querySelector('#loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     try { await api.post('/api/auth/login', { email: d.querySelector('#lgE').value, password: d.querySelector('#lgP').value }); d.close(); await afterAuth('Signed in'); }
@@ -200,15 +203,20 @@ function fillDates() {
   const sel = document.getElementById('dateSel');
   const ds = state.boot.horizons[state.h].dates;
   if (!ds.includes(state.date)) state.date = state.dateFor(state.h);
-  sel.innerHTML = [...ds].reverse().map((d, i) => `<option value="${d}">Issue ${d}${i === 0 ? ' (latest)' : ''}</option>`).join('');
+  sel.innerHTML = [...ds].reverse().map((d, i) => `<option value="${d}">Issued ${d}${i === 0 ? ' (latest)' : ''}</option>`).join('');
   sel.value = state.date;
 }
 
 let switching = 0;
 function changed() {
   const n = ++switching;  // rapid switching: only the last change renders
-  setTimeout(() => { if (n === switching) { refreshMeta(); route(); refreshBadges(); } }, 120);
+  setTimeout(async () => { if (n === switching) { await refreshMeta(); route(); } }, 120);
 }
+export function setIssue(date) {
+  if (!state.boot.horizons[state.h].dates.includes(date) || date === state.date) return;
+  state.date = date; document.getElementById('dateSel').value = date; refreshMeta().then(() => renderBanners(currentRoute()));
+}
+const currentRoute = () => location.hash.replace(/^#\/?/, '').split('?')[0] || 'overview';
 
 function setH(h) {
   state.h = h;
@@ -223,43 +231,35 @@ function stepDate(dir) {
   if (i >= 0 && i < ds.length) { state.date = ds[i]; document.getElementById('dateSel').value = state.date; changed(); }
 }
 
-function tick() {
-  const t = new Date().toLocaleTimeString('en-GB', { timeZone: 'Africa/Kigali', hour: '2-digit', minute: '2-digit' });
-  document.getElementById('clock').textContent = `${t} CAT`;
-}
-
-async function refreshBadges() {
+export async function refreshBadges() {
   try {
-    const alerts = await api.get(`/api/alerts?h=${state.h}&date=${state.date}`);
-    const open = alerts.filter((a) => a.state === 'open').length;
+    const o = await api.get('/api/overview');
+    const n = o.actions.reduce((a, x) => a + x.n, 0);
     const bn = document.getElementById('bellN');
-    bn.textContent = open; bn.hidden = !open;
-    document.getElementById('bellBtn').title = open ? `${open} open alerts` : `No open alerts (${alerts.length} for this issue, ${alerts.filter((a) => a.expired).length} expired)`;
-    const b = document.getElementById('navAlerts');
-    const hi = alerts.length;
-    if (b) { b.textContent = hi; b.hidden = !hi; }
+    bn.textContent = n; bn.hidden = !n;
+    document.getElementById('bellBtn').title = n ? `${n} items need attention` : 'Nothing needs attention';
     if (state.can('read:field')) {
       const s = await api.get('/api/field/summary');
-      const t = (s.tasks.assigned || 0) + (s.tasks.in_progress || 0);
+      const k = (s.tasks.assigned || 0) + (s.tasks.in_progress || 0);
       const nt = document.getElementById('navTasks');
-      if (nt) { nt.textContent = t; nt.hidden = !t; }
+      if (nt) { nt.textContent = k; nt.hidden = !k; }
     }
   } catch (e) { /* badges are decoration */ }
 }
 
 function onboarding(force = false) {
   let seen = false;
-  try { seen = localStorage.getItem('rinda.onboarded') === '2'; } catch (e) {}
+  try { seen = localStorage.getItem('rinda.onboarded') === '3'; } catch (e) {}
   if (seen && !force) return;
   const d = modal('Welcome to RINDA', `
     <ol class="steps" style="margin:0;padding:0">
-      <li><div><b>What it forecasts.</b> Whether new surface water will appear at each 50 m monitoring point 7 or 14 days ahead, from Sentinel-1 radar and station weather. It is a lead for inspection, not proof of larvae.</div></li>
-      <li><div><b>How to read a site.</b> Every point carries a verification priority: <i>High</i>, <i>Insufficient evidence</i> (the model cannot tell, so verify) or <i>Lower</i>. Click any point for its evidence, inputs and model version.</div></li>
-      <li><div><b>Check the stamp.</b> The banner and the chip next to the date tell you whether a forecast is current or stale. Stale forecasts are history, not guidance.</div></li>
-      <li><div><b>From forecast to action.</b> Supervisors assign inspections, field officers record what they find, and only a verified field finding can lead to an authorised intervention.</div></li>
+      <li><div><b>One map, several kinds of evidence.</b> Satellite, sensor, weather, field and operational records sit on the same map. Each is labelled with where it came from and when.</div></li>
+      <li><div><b>A forecast is a lead, not a finding.</b> It suggests where new surface water may appear. It is research-only, and it never confirms mosquito breeding.</div></li>
+      <li><div><b>Only field work confirms a habitat.</b> An officer inspects and dips, a supervisor reviews, and only a verified finding can lead to an authorised treatment.</div></li>
+      <li><div><b>"No data available" means exactly that.</b> RINDA never shows a zero or an estimate in place of a missing record.</div></li>
     </ol>
     <div class="actions"><button class="btn primary" id="obDone">Start</button><a class="btn" href="#/help" id="obHelp">${icon('help')}Open the guide</a></div>`);
-  const done = () => { try { localStorage.setItem('rinda.onboarded', '2'); } catch (e) {} d.close(); };
+  const done = () => { try { localStorage.setItem('rinda.onboarded', '3'); } catch (e) {} d.close(); };
   d.querySelector('#obDone').addEventListener('click', done);
   d.querySelector('#obHelp').addEventListener('click', done);
 }
@@ -273,7 +273,7 @@ async function waitReady(msg) {
     try {
       const r = await fetch('/api/v1/ready', { cache: 'no-store' });
       if (r.ok) return true;
-      msg.textContent = `Forecast engine loading models (${s} s)`;
+      msg.textContent = `Loading models (${s} s)`;
     } catch (e) {
       msg.textContent = s < 5 ? 'Connecting to RINDA' : `Service waking up after inactivity (${s} s). This can take up to a minute on the hosted demonstration.`;
     }
@@ -282,7 +282,6 @@ async function waitReady(msg) {
   }
 }
 
-// Language switch: English reference text, draft Kinyarwanda for field screens.
 function paintLang() {
   document.querySelectorAll('#langSeg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === getLang())));
 }
@@ -292,7 +291,6 @@ async function chooseLang(l) {
   if (state.user?.authenticated) { try { await api.post('/api/auth/preferences', { language: l }); state.user.language = l; } catch (e) { /* saved locally anyway */ } }
   document.getElementById('navlinks').innerHTML = navHTML();
   document.getElementById('userName').textContent = state.user?.authenticated ? state.user.name : t('Sign in');
-  renderBanners();
   route();
 }
 
@@ -301,9 +299,7 @@ async function chooseLang(l) {
 function registerShell() {
   if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
   navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => { /* offline shell is optional */ });
-  // On the first visit the worker takes control only after the page has loaded its
-  // data, so fetch the field essentials once more through it to keep a copy.
-  const warm = () => ['/api/v1/bootstrap', '/api/v1/auth/me', '/api/v1/tasks', '/api/v1/habitats', '/api/v1/field/summary']
+  const warm = () => ['/api/v1/bootstrap', '/api/v1/auth/me', '/api/v1/tasks', '/api/v1/habitats', '/api/v1/field/summary', '/api/v1/overview']
     .forEach((u) => fetch(u, { credentials: 'same-origin' }).catch(() => {}));
   navigator.serviceWorker.addEventListener('controllerchange', warm, { once: true });
 }
@@ -312,13 +308,12 @@ async function boot() {
   const msg = document.getElementById('bootMsg');
   registerShell();
   if (!navigator.onLine) {
-    // no network: start from what the service worker saved, if anything
     state.offlineBoot = true;
   } else if (!(await waitReady(msg))) {
     msg.innerHTML = 'RINDA did not respond within three minutes. <a href="" onclick="location.reload()">Retry</a>';
     return;
   }
-  msg.textContent = 'Loading operating picture';
+  msg.textContent = 'Loading the situation overview';
   try {
     await loadUserSafe();
     state.boot = await api.get('/api/bootstrap');
@@ -332,7 +327,6 @@ async function boot() {
   const b = state.boot;
   state.date = b.horizons[7].dates.at(-1);
   document.getElementById('buildTag').textContent = `v${b.product.version}`;
-  document.getElementById('modeChip').lastChild.textContent = b.mode === 'hindcast' ? 'Hindcast replay' : 'Operational';
   fillDates();
 
   document.querySelectorAll('#hSeg button').forEach((x) => x.addEventListener('click', () => setH(+x.dataset.h)));
@@ -341,17 +335,19 @@ async function boot() {
   document.getElementById('dateNext').addEventListener('click', () => stepDate(1));
   document.getElementById('userChip').addEventListener('click', authDialog);
   document.querySelectorAll('#langSeg button').forEach((x) => x.addEventListener('click', () => chooseLang(x.dataset.lang)));
-  document.getElementById('themeBtn').addEventListener('click', () => {
-    const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-    document.documentElement.dataset.theme = t;
-    try { localStorage.setItem('rinda.theme', t); } catch (e) {}
-    route();
+  const shell = document.getElementById('shell');
+  try { if (localStorage.getItem('rinda.nav') === 'collapsed') shell.classList.add('collapsed'); } catch (e) {}
+  document.getElementById('navCollapse').addEventListener('click', () => {
+    const c = shell.classList.toggle('collapsed');
+    try { localStorage.setItem('rinda.nav', c ? 'collapsed' : 'open'); } catch (e) {}
+    window.dispatchEvent(new Event('resize'));
   });
   document.getElementById('navToggle').addEventListener('click', () => document.getElementById('nav').classList.toggle('open'));
+  document.getElementById('navScrim').addEventListener('click', () => document.getElementById('nav').classList.remove('open'));
   document.getElementById('drawer').addEventListener('click', (e) => { if (e.target.closest('[data-close]')) drawer.close(); });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') drawer.close();
-    if (e.target.matches('input, select, textarea')) return;
+    if (e.key === 'Escape') { drawer.close(); document.getElementById('nav').classList.remove('open'); }
+    if (e.target.matches('input, select, textarea') || document.getElementById('fcCtx').hidden) return;
     if (e.key === '[') stepDate(-1);
     if (e.key === ']') stepDate(1);
   });
@@ -359,16 +355,16 @@ async function boot() {
     const off = !navigator.onLine;
     const chip = document.getElementById('offlineChip');
     chip.hidden = !off && !queued();
-    chip.textContent = off ? `Offline${queued() ? ` · ${queued()} queued` : ''}` : `${queued()} queued`;
-    if (!off && queued()) flushQueue().then((n) => { if (n) { toast(`${n} queued observation(s) sent`); net(); } });
+    chip.textContent = off ? `Offline${queued() ? ` · ${queued()} waiting to send` : ''}` : `${queued()} waiting to send`;
+    if (!off && queued()) flushQueue().then((n) => { if (n) { toast(`${n} saved observation(s) sent`); net(); } });
   };
   window.addEventListener('online', net); window.addEventListener('offline', net); window.addEventListener('rinda:queue', net);
   window.addEventListener('hashchange', route);
-  window.openSite = (id, date) => openSite(id, date || state.date, state.h, state);
-  tick(); setInterval(tick, 15000);
+  // One entry point for "show me this place", used by every view.
+  window.openSite = async (id) => { const m = await import('./views/dossier.js'); m.openDossierDrawer(id, state); };
 
   document.getElementById('boot').remove();
-  document.getElementById('shell').hidden = false;
+  shell.hidden = false;
   await refreshMeta();
   await route();
   refreshBadges();

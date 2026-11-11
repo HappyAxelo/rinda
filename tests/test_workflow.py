@@ -36,7 +36,7 @@ def test_role_matrix_enforced_on_server(roles):
     v, fo, an = roles["viewer"], roles["field_officer"], roles["analyst"]
     assert v.get("/api/v1/tasks").status_code == 403
     assert fo.post("/api/v1/tasks", json={"site_id": "G0221", "due_date": "2026-12-01", "assignee_id": 1}, headers=W).status_code == 403
-    assert an.post("/api/v1/interventions", json={"observation_id": 1, "method": "bti_ground", "protocol_ref": "SOP-1"}, headers=W).status_code == 403
+    assert an.post("/api/v1/interventions", json={"observation_id": 1, "method": "bti_ground", "protocol_ref": "SOP-1", "habitat_suitability": "suitable_for_ground"}, headers=W).status_code == 403
     assert fo.get("/api/v1/admin/status").status_code == 403
     assert an.get("/api/v1/field/export/observations.csv").status_code == 403
 
@@ -70,13 +70,13 @@ def test_full_field_journey(roles):
     assert next(x for x in fo.get("/api/v1/tasks").json() if x["id"] == tid)["status"] == "completed"
 
     # 4. intervention is refused before verification, and the observer cannot self-verify
-    assert sup.post("/api/v1/interventions", json={"observation_id": oid, "method": "bti_ground", "protocol_ref": "NMCP-LSM-SOP-4"}, headers=W).status_code == 409
+    assert sup.post("/api/v1/interventions", json={"observation_id": oid, "method": "bti_ground", "protocol_ref": "NMCP-LSM-SOP-4", "habitat_suitability": "suitable_for_ground"}, headers=W).status_code == 409
     sup_obs = sup.post("/api/v1/observations", json=obs(a["site_id"], tag="selfcheck"), headers=W).json()["id"]
     assert sup.post(f"/api/v1/observations/{sup_obs}/review", json={"decision": "verified"}, headers=W).status_code == 403
 
     # 5. supervisor verifies, then authorises with a protocol reference
     assert sup.post(f"/api/v1/observations/{oid}/review", json={"decision": "verified"}, headers=W).status_code == 200
-    iv = sup.post("/api/v1/interventions", json={"observation_id": oid, "method": "bti_ground", "protocol_ref": "NMCP-LSM-SOP-4"}, headers=W)
+    iv = sup.post("/api/v1/interventions", json={"observation_id": oid, "method": "bti_ground", "protocol_ref": "NMCP-LSM-SOP-4", "habitat_suitability": "suitable_for_ground"}, headers=W)
     assert iv.status_code == 201
     iid = iv.json()["id"]
 
