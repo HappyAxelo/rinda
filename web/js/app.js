@@ -20,7 +20,7 @@ const MODULES = [
     ['reports', 'Indicators', 'read:me'], ['programme', 'RE-AIM, weekly report and DHIS2', 'read:me'], ['bulletins', 'Bulletins'], ['impact', 'Costs and planning estimates']] },
   { key: 'admin', label: 'Administration & Evidence', short: 'Admin and evidence', icon: 'sliders', tabs: [
     ['admin', 'Users and system', 'admin:system'], ['models', 'Data and models', 'read:models'], ['assurance', 'Model assurance'], ['replay', 'Historical replay'],
-    ['scenario', 'Scenario lab'], ['evidence', 'Programme evidence'], ['governance', 'Data provenance'], ['help', 'Help and glossary']] },
+    ['scenario', 'Scenario lab'], ['research', 'Research alignment'], ['evidence', 'Evidence chain'], ['governance', 'Data provenance'], ['help', 'Help and glossary']] },
 ];
 const VIEWS = {
   overview: () => import('./views/overview.js'), map: () => import('./views/map.js'), dossier: () => import('./views/dossier.js'),
@@ -31,11 +31,11 @@ const VIEWS = {
   network: () => import('./views/network.js'), impact: () => import('./views/impact.js'), reports: () => import('./views/reports.js'),
   bulletins: () => import('./views/bulletins.js'), evidence: () => import('./views/evidence.js'),
   governance: () => import('./views/governance.js'), admin: () => import('./views/admin.js'), models: () => import('./views/models.js'),
-  help: () => import('./views/help.js'), programme: () => import('./views/programme.js'),
+  help: () => import('./views/help.js'), programme: () => import('./views/programme.js'), research: () => import('./views/research.js'),
 };
 // Pages that read the forecast issue selected in the top bar.
 const FORECAST_ROUTES = new Set(['map', 'forecast', 'issue', 'missions', 'replay', 'scenario', 'bulletins', 'field', 'impact']);
-const ROLE_HOME = { viewer: 'overview', field_officer: 'field', analyst: 'map', supervisor: 'overview', programme_manager: 'overview', admin: 'overview' };
+const ROLE_HOME = { viewer: 'overview', field_officer: 'field', drone_operator: 'drone', analyst: 'map', supervisor: 'overview', programme_manager: 'overview', admin: 'overview' };
 
 const allowed = (tab) => !tab[2] || state.can(tab[2]);
 const tabsOf = (m) => m.tabs.filter(allowed);

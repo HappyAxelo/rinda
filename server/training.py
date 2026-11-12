@@ -17,8 +17,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import platform
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 os.environ.setdefault("ARROW_DEFAULT_MEMORY_POOL", "system")
@@ -143,6 +145,15 @@ def train(df: pd.DataFrame, target: str, horizon: int, cfg: dict, seed: int, lis
     p_te = iso.predict(model.predict_proba(X[te])[:, 1])
     thr = best_f1_threshold(y[ca], p_cal)
     result = {"model": binary_metrics(y[te], p_te, thr)}
+    Xs = X[te].iloc[:5000]
+    times = []
+    for _ in range(5):
+        t0 = time.perf_counter()
+        iso.predict(model.predict_proba(Xs)[:, 1])
+        times.append(time.perf_counter() - t0)
+    result["efficiency"] = {"ms_per_1000_rows": round(sorted(times)[2] * 1e6 / len(Xs), 2), "rows_timed": int(len(Xs)), "trees": int(model.n_estimators),
+                            "measured_on": f"{platform.system()} {platform.machine()}, 1 thread",
+                            "note": "Server measurement of the forecast model. Not an edge-device measurement."}
 
     base = float(y[tr].mean())
     baselines = {"B0_training_base_rate": binary_metrics(y[te], np.full(te.sum(), base), base)}
@@ -195,6 +206,7 @@ def run_job(run_id: int) -> int:
         r = dict(c.execute("SELECT * FROM training_runs WHERE id=?", (run_id,)).fetchone())
         ds = dict(c.execute("SELECT * FROM dataset_versions WHERE id=?", (r["dataset_version_id"],)).fetchone())
         c.execute("UPDATE training_runs SET status='running', started_utc=? WHERE id=?", (now(), run_id))
+    t_start = time.time()
     try:
         cfg = json.loads(r["config"] or "{}")
         listed = json.loads(ds["columns"]) if ds["provenance"] == "STUDY" else None
@@ -209,6 +221,7 @@ def run_job(run_id: int) -> int:
         out["predictions"].to_parquet(pp, index=False)
         sha = hashlib.sha256(out["predictions"].to_csv(index=False).encode()).hexdigest()
         m = out["metrics"]
+        m["efficiency"] |= {"model_bytes": path.stat().st_size, "train_seconds": round(time.time() - t_start, 1), "peak_memory_mb": _peak_mb()}
         m["dataset"] = {"id": ds["id"], "kind": ds["kind"], "version": ds["version"], "sha256": ds["sha256"], "provenance": ds["provenance"]}
         m["predictions_sha256"] = sha
         warn = int(ds["provenance"] == "STUDY" and r["target"] == "A") or int(ds["provenance"] == "SYNTHETIC")
@@ -223,6 +236,20 @@ def run_job(run_id: int) -> int:
     except Exception as e:  # noqa: BLE001 - recorded on the run so the analyst sees it
         _finish(run_id, "failed", f"{type(e).__name__}: {e}"[:500])
         return 1
+
+
+def _peak_mb() -> float | None:
+    """Peak memory of this training process, where the platform reports it."""
+    try:
+        import psutil
+        mi = psutil.Process().memory_info()
+        return round(getattr(mi, "peak_wset", mi.rss) / 1e6, 1)
+    except Exception:
+        try:
+            import resource
+            return round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, 1)
+        except Exception:
+            return None
 
 
 def start_job(run_id: int) -> None:

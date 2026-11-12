@@ -565,3 +565,8 @@ h1 svg, h2 svg, h3 svg, h4 svg, p svg, .note > svg, .hint svg { width: 18px; hei
 .form.cols-2 > .field, .form > .field { min-width: 0; }
 .field select, .field input:not([type="checkbox"]):not([type="radio"]) { width: 100%; min-width: 0; }
 .filterbar .field select, .filterbar .field input { width: auto; }
+
+.kvs > div { min-width: 0; overflow-wrap: anywhere; }
+.card-h { flex-wrap: wrap; }
+.card-h h3 { min-width: 0; overflow-wrap: anywhere; }
+.view { overflow-x: clip; }

@@ -53,7 +53,8 @@ const RW = {
   'Draft translation': "Ubusobanuro bw'agateganyo",
 };
 
-const DICTS = { en: {}, rw: RW };
+// French has a slot so a dictionary can be added without touching any screen.
+const DICTS = { en: {}, rw: RW, fr: {} };
 let lang = 'en';
 try { const s = localStorage.getItem('rinda.lang'); if (s === 'rw' || s === 'en') lang = s; } catch (e) { /* storage blocked */ }
 

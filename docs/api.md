@@ -31,37 +31,37 @@ Generated from the OpenAPI schema by `scripts/gen_api_docs.py`. Interactive vers
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
-| GET | `/api/v1/alerts` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | List Alerts |
+| GET | `/api/v1/alerts` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | List Alerts |
 | POST | `/api/v1/alerts/{aid}` | supervisor, admin (`act:alert`) | Act Alert |
 | GET | `/api/v1/feedback` | admin (`admin:users`) | List Feedback |
 | POST | `/api/v1/feedback` | public | Feedback |
 | GET | `/api/v1/field/assignees` | supervisor, admin (`assign:task`) | People a supervisor can assign inspections to (names and roles only). |
 | GET | `/api/v1/field/export/{kind}.csv` | supervisor, admin (`export:field`) | Export |
 | GET | `/api/v1/field/summary` | public | Counts only: safe for every role, including public viewers. |
-| GET | `/api/v1/habitats` | field_officer, analyst, supervisor, admin (`read:field`) | Habitats registered in the field, away from the radar monitoring points. |
-| GET | `/api/v1/interventions` | field_officer, analyst, supervisor, admin (`read:field`) | List Interventions |
+| GET | `/api/v1/habitats` | field_officer, drone_operator, analyst, supervisor, admin (`read:field`) | Habitats registered in the field, away from the radar monitoring points. |
+| GET | `/api/v1/interventions` | field_officer, drone_operator, analyst, supervisor, admin (`read:field`) | List Interventions |
 | POST | `/api/v1/interventions` | supervisor, admin (`authorize:intervention`) | Authorise |
 | POST | `/api/v1/interventions/reject` | supervisor, admin (`authorize:intervention`) | A supervisor's decision not to treat, kept as a record with its reason. |
 | POST | `/api/v1/interventions/{iid}/followup` | supervisor, admin (`review:observation`) | Followup |
-| POST | `/api/v1/interventions/{iid}/performed` | field_officer, supervisor, admin (`record:intervention`) | Performed |
+| POST | `/api/v1/interventions/{iid}/performed` | field_officer, drone_operator, supervisor, admin (`record:intervention`) | Performed |
 | POST | `/api/v1/observations` | field_officer, analyst, supervisor, admin (`write:observation`) | Create Observation |
-| GET | `/api/v1/observations` | field_officer, analyst, supervisor, admin (`read:field`) | List Observations |
+| GET | `/api/v1/observations` | field_officer, drone_operator, analyst, supervisor, admin (`read:field`) | List Observations |
 | POST | `/api/v1/observations/{oid}/photos` | field_officer, analyst, supervisor, admin (`write:observation`) | Add Photo |
 | POST | `/api/v1/observations/{oid}/review` | supervisor, admin (`review:observation`) | Review Observation |
-| GET | `/api/v1/photos/{pid}` | field_officer, analyst, supervisor, admin (`read:field`) | Get Photo |
-| GET | `/api/v1/protocol` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Get Protocol |
+| GET | `/api/v1/photos/{pid}` | field_officer, drone_operator, analyst, supervisor, admin (`read:field`) | Get Photo |
+| GET | `/api/v1/protocol` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Get Protocol |
 | POST | `/api/v1/tasks` | supervisor, admin (`assign:task`) | Create Task |
-| GET | `/api/v1/tasks` | field_officer, analyst, supervisor, admin (`read:field`) | List Tasks |
+| GET | `/api/v1/tasks` | field_officer, drone_operator, analyst, supervisor, admin (`read:field`) | List Tasks |
 | POST | `/api/v1/tasks/{tid}/status` | field_officer, supervisor, admin (`update:own_task`) | Task Status |
 
 ### Validation
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
-| GET | `/api/v1/assurance` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Assurance |
-| GET | `/api/v1/replay` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | What the forecast said on an issue date, which inputs it had, and what the |
+| GET | `/api/v1/assurance` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Assurance |
+| GET | `/api/v1/replay` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | What the forecast said on an issue date, which inputs it had, and what the |
 | GET | `/api/v1/replay/export.csv` | analyst, supervisor, admin (`export:validation`) | Replay Export |
-| GET | `/api/v1/verification` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Verification |
+| GET | `/api/v1/verification` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Verification |
 
 ### Auth
 
@@ -71,30 +71,30 @@ Generated from the OpenAPI schema by `scripts/gen_api_docs.py`. Interactive vers
 | POST | `/api/v1/auth/login` | public | Auth Login |
 | POST | `/api/v1/auth/logout` | public | Auth Logout |
 | GET | `/api/v1/auth/me` | public | Auth Me |
-| POST | `/api/v1/auth/password` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Auth Password |
-| POST | `/api/v1/auth/preferences` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Interface and message language for the signed-in account. |
+| POST | `/api/v1/auth/password` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Auth Password |
+| POST | `/api/v1/auth/preferences` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Interface and message language for the signed-in account. |
 
 ### Forecast
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
-| GET | `/api/v1/bootstrap` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Bootstrap |
-| GET | `/api/v1/explain` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Explain |
-| GET | `/api/v1/forecast` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Forecast |
-| GET | `/api/v1/forecast/meta` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Forecast Meta |
-| GET | `/api/v1/scenario` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Scenario |
+| GET | `/api/v1/bootstrap` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Bootstrap |
+| GET | `/api/v1/explain` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Explain |
+| GET | `/api/v1/forecast` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Forecast |
+| GET | `/api/v1/forecast/meta` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Forecast Meta |
+| GET | `/api/v1/scenario` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Scenario |
 | POST | `/api/v1/score` | analyst, supervisor, admin (`score:batch`) | Score |
-| GET | `/api/v1/score/template` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Score Template |
-| GET | `/api/v1/site/{site_id}` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Site |
+| GET | `/api/v1/score/template` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Score Template |
+| GET | `/api/v1/site/{site_id}` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Site |
 
 ### Programme
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
-| GET | `/api/v1/bulletin` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Bulletin |
-| POST | `/api/v1/economics` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Economics |
-| GET | `/api/v1/evidence` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Evidence |
-| GET | `/api/v1/governance` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Governance |
+| GET | `/api/v1/bulletin` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Bulletin |
+| POST | `/api/v1/economics` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Economics |
+| GET | `/api/v1/evidence` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Evidence |
+| GET | `/api/v1/governance` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Governance |
 | GET | `/api/v1/me/indicators` | analyst, supervisor, programme_manager, admin (`read:me`) | Monitoring-and-evaluation indicators grouped by RE-AIM dimension, computed only from records. |
 | GET | `/api/v1/messages` | supervisor, admin (`read:outbox`) | List Messages |
 | POST | `/api/v1/messages/digest` | supervisor, admin (`write:outbox`) | Weekly digest for every active supervisor and programme manager, in each person's language. |
@@ -110,23 +110,23 @@ Generated from the OpenAPI schema by `scripts/gen_api_docs.py`. Interactive vers
 | GET | `/api/v1/connectors` | analyst, admin (`read:models`) | List Connectors |
 | POST | `/api/v1/connectors/{key}/records` | analyst, admin (`manage:data`) | Push Records |
 | POST | `/api/v1/connectors/{key}/run` | analyst, admin (`manage:data`) | Run Connector |
-| GET | `/api/v1/dossier/{sid}` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Dossier |
-| GET | `/api/v1/earth/products` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Earth Products |
-| GET | `/api/v1/freshness` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Freshness |
-| GET | `/api/v1/geo/areas` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Geo Areas |
-| GET | `/api/v1/geo/boundaries` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Geo Boundaries |
-| GET | `/api/v1/iot/nodes/{node_id}` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Iot Node |
-| GET | `/api/v1/map/earth` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Map Earth |
-| GET | `/api/v1/map/entomology` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Map Entomology |
-| GET | `/api/v1/map/forecast` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Map Forecast |
-| GET | `/api/v1/map/iot` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Map Iot |
-| GET | `/api/v1/map/meteo` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Map Meteo |
-| GET | `/api/v1/map/operations` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Map Operations |
-| GET | `/api/v1/model-audit` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Model Audit |
+| GET | `/api/v1/dossier/{sid}` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Dossier |
+| GET | `/api/v1/earth/products` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Earth Products |
+| GET | `/api/v1/freshness` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Freshness |
+| GET | `/api/v1/geo/areas` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Geo Areas |
+| GET | `/api/v1/geo/boundaries` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Geo Boundaries |
+| GET | `/api/v1/iot/nodes/{node_id}` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Iot Node |
+| GET | `/api/v1/map/earth` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Map Earth |
+| GET | `/api/v1/map/entomology` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Map Entomology |
+| GET | `/api/v1/map/forecast` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Map Forecast |
+| GET | `/api/v1/map/iot` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Map Iot |
+| GET | `/api/v1/map/meteo` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Map Meteo |
+| GET | `/api/v1/map/operations` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Map Operations |
+| GET | `/api/v1/model-audit` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Model Audit |
 | GET | `/api/v1/models` | analyst, admin (`read:models`) | List Models |
 | POST | `/api/v1/models/{mid}/decision` | admin (`decide:model`) | Decide |
 | GET | `/api/v1/overview` | public | Overview |
-| GET | `/api/v1/search` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Search |
+| GET | `/api/v1/search` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Search |
 | GET | `/api/v1/training/runs` | analyst, admin (`read:models`) | List Runs |
 | POST | `/api/v1/training/runs` | analyst, admin (`train:model`) | Start Run |
 | GET | `/api/v1/training/runs/{rid}` | analyst, admin (`read:models`) | Get Run |
@@ -142,17 +142,25 @@ Generated from the OpenAPI schema by `scripts/gen_api_docs.py`. Interactive vers
 | GET | `/api/v1/datasets/{did}` | analyst, admin (`read:models`) | Get Dataset |
 | POST | `/api/v1/datasets/{did}/confirm` | analyst, admin (`manage:data`) | Confirm |
 
+### Research
+
+| Method | Path | Who | Purpose |
+|---|---|---|---|
+| GET | `/api/v1/earth/inventory` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | What Earth-observation data is catalogued, by collection and year, and what RINDA actually holds of it. |
+| GET | `/api/v1/models/efficiency` | analyst, admin (`read:models`) | Measured cost of the forecast models on this server, and what is still unmeasured on the edge device. |
+| GET | `/api/v1/research/alignment` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Alignment |
+
 ### Flight Logs
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
-| GET | `/api/v1/flightlogs` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Flightlog List |
-| POST | `/api/v1/flightlogs` | analyst, supervisor, admin (`upload:flightlog`) | Flightlog Upload |
-| GET | `/api/v1/flightlogs/analysis` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Flightlog Analysis |
-| GET | `/api/v1/flightlogs/schema` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Flightlog Schema |
-| GET | `/api/v1/flightlogs/template` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Flightlog Template |
+| GET | `/api/v1/flightlogs` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Flightlog List |
+| POST | `/api/v1/flightlogs` | drone_operator, analyst, supervisor, admin (`upload:flightlog`) | Flightlog Upload |
+| GET | `/api/v1/flightlogs/analysis` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Flightlog Analysis |
+| GET | `/api/v1/flightlogs/schema` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Flightlog Schema |
+| GET | `/api/v1/flightlogs/template` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Flightlog Template |
 | DELETE | `/api/v1/flightlogs/{log_id}` | supervisor, admin (`delete:flightlog`) | Flightlog Delete |
-| POST | `/api/v1/missions/{mid}/synthetic-log` | analyst, supervisor, admin (`upload:flightlog`) | Flightlog Synthetic |
+| POST | `/api/v1/missions/{mid}/synthetic-log` | drone_operator, analyst, supervisor, admin (`upload:flightlog`) | Flightlog Synthetic |
 
 ### System
 
@@ -166,22 +174,22 @@ Generated from the OpenAPI schema by `scripts/gen_api_docs.py`. Interactive vers
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
-| GET | `/api/v1/meteo` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Meteo |
-| GET | `/api/v1/meteo/summary` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Meteo Summary |
-| GET | `/api/v1/telemetry` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Telemetry |
+| GET | `/api/v1/meteo` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Meteo |
+| GET | `/api/v1/meteo/summary` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Meteo Summary |
+| GET | `/api/v1/telemetry` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Telemetry |
 | POST | `/api/v1/telemetry/{station_id}` | public | Telemetry Ingest |
 
 ### Missions
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
-| GET | `/api/v1/missions` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Missions |
-| POST | `/api/v1/missions/plan` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Planning preview is open to every reader; committing needs plan:mission. |
-| GET | `/api/v1/missions/{mid}` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Mission |
-| GET | `/api/v1/missions/{mid}/export` | analyst, supervisor, admin (`plan:mission`) | Mission Export |
-| POST | `/api/v1/missions/{mid}/result` | analyst, supervisor, admin (`plan:mission`) | What actually happened on the flight, as recorded by the crew. |
-| POST | `/api/v1/missions/{mid}/status` | analyst, supervisor, admin (`plan:mission`) | Mission Status |
-| POST | `/api/v1/timing` | viewer, field_officer, analyst, supervisor, programme_manager, admin (`read:forecast`) | Timing |
+| GET | `/api/v1/missions` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Missions |
+| POST | `/api/v1/missions/plan` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Planning preview is open to every reader; committing needs plan:mission. |
+| GET | `/api/v1/missions/{mid}` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Mission |
+| GET | `/api/v1/missions/{mid}/export` | drone_operator, analyst, supervisor, admin (`plan:mission`) | Mission Export |
+| POST | `/api/v1/missions/{mid}/result` | drone_operator, analyst, supervisor, admin (`plan:mission`) | What actually happened on the flight, as recorded by the crew. |
+| POST | `/api/v1/missions/{mid}/status` | drone_operator, analyst, supervisor, admin (`plan:mission`) | Mission Status |
+| POST | `/api/v1/timing` | viewer, field_officer, drone_operator, analyst, supervisor, programme_manager, admin (`read:forecast`) | Timing |
 
 ### Reporting
 

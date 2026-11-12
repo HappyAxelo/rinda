@@ -27,15 +27,16 @@ from fastapi import Depends, HTTPException, Request, Response
 from db import now, tx
 from engine import VAR
 
-ROLES = ["viewer", "field_officer", "analyst", "supervisor", "programme_manager", "admin"]
-ROLE_LABEL = {"viewer": "Viewer", "field_officer": "Field officer", "analyst": "Technical analyst",
-              "supervisor": "Supervisor", "programme_manager": "Programme manager",
+ROLES = ["viewer", "field_officer", "drone_operator", "analyst", "supervisor", "programme_manager", "admin"]
+ROLE_LABEL = {"viewer": "Viewer", "field_officer": "Field officer", "drone_operator": "Drone operator", "analyst": "Researcher or analyst",
+              "supervisor": "District supervisor", "programme_manager": "National programme manager",
               "admin": "Institution administrator"}
 # The job each role is meant for in Rwanda's malaria programme. PROPOSED mapping, to be
 # confirmed with RBC Malaria & NTD Division before accounts are issued.
 ROLE_TITLE = {
     "viewer": "Partner or evaluator (read only)",
     "field_officer": "Environmental Health Officer / larval survey technician",
+    "drone_operator": "Licensed drone pilot or payload operator",
     "analyst": "Entomologist or data manager",
     "supervisor": "District Vector Control Officer",
     "programme_manager": "National Malaria Programme Manager (RBC)",
@@ -57,6 +58,8 @@ _MODELS = {"read:models", "manage:data", "train:model"}
 PERMS = {
     "viewer": _READ,
     "field_officer": _READ | _FIELD | {"record:intervention"},
+    # flies approved missions and records what happened; sees field records for its targets, decides nothing
+    "drone_operator": _READ | {"read:field", "read:alerts", "plan:mission", "upload:flightlog", "record:intervention"},
     "analyst": _READ | _ANALYST | _MODELS | {"read:me"},
     "supervisor": _READ | _FIELD | _ANALYST | _SUPERVISOR,
     "programme_manager": _READ | _PROGRAMME,
@@ -189,6 +192,7 @@ def bootstrap_admin() -> str | None:
 DEMO_USERS = {
     "viewer": ("demo.viewer@rinda.demo", "Demo viewer"),
     "field_officer": ("demo.field@rinda.demo", "Demo field officer"),
+    "drone_operator": ("demo.drone@rinda.demo", "Demo drone operator"),
     "analyst": ("demo.analyst@rinda.demo", "Demo analyst"),
     "supervisor": ("demo.supervisor@rinda.demo", "Demo supervisor"),
     "programme_manager": ("demo.programme@rinda.demo", "Demo programme manager"),

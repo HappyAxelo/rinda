@@ -79,7 +79,7 @@ untouched test of v3 yet) and the data archive ends on 2026-09-30, so every fore
 
 ## Roles and sign-in
 
-Viewer, Field officer, Technical analyst, Supervisor, Programme manager and Institution administrator, each with a
+Viewer, Field officer, Drone operator, Researcher or analyst, District supervisor, National programme manager and Institution administrator, each with a
 proposed RBC job title (to confirm with RBC); permissions are enforced on the server (`server/security.py`). With `RINDA_PUBLIC_READ=1` anyone can read forecasts and validation without an account.
 With `RINDA_DEMO=1` (the hosted demonstration) a visitor can sign in as any role without a password; everything such
 an account creates is labelled DEMO. Operational deployments set `RINDA_DEMO=0` and create accounts under Administration.
@@ -97,6 +97,8 @@ an account creates is labelled DEMO. Operational deployments set `RINDA_DEMO=0` 
 | `docs/user-guide.md`, `docs/admin-guide.md` | Operating instructions |
 | `docs/backlog.md`, `docs/changes-2026-10-12.md`, `docs/readiness-assessment.md` | Plan, change record, readiness |
 | `docs/changes-2026-11-06.md` | Programme uptake: M&E, weekly report, DHIS2, habitats, offline shell, Kinyarwanda draft, roles, outbox |
+| `docs/research-gap-matrix.md` | Evidence-based gap matrix, objective-to-module map, challenged assumptions |
+| `docs/changes-2026-11-12.md` | Research alignment, data inventory, drone operator role, efficiency measurements, implementation report |
 | `docs/changes-2026-11-10.md` | Rebuild: six modules, surveillance map, habitat dossier, historical data and training, connectors, what is done and what is not |
 | `docs/hosting-rbc.md`, `docs/data-sharing-agreement-template.md`, `docs/dpia-template.md` | Drafts for RBC ICT, legal and data-protection review |
 

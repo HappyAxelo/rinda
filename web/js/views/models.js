@@ -6,7 +6,7 @@ import { params } from '../app.js';
 let ST, timer;
 export function destroy() { clearTimeout(timer); }
 
-const TABS = [['datasets', 'Datasets'], ['training', 'Training runs'], ['registry', 'Model registry'], ['sources', 'Data sources and ingestion']];
+const TABS = [['inventory', 'Data inventory'], ['datasets', 'Datasets'], ['training', 'Training runs'], ['registry', 'Model registry'], ['efficiency', 'Efficiency and edge readiness'], ['sources', 'Data sources and ingestion']];
 const DS = { validated: ['st-warn', 'Waiting for confirmation'], confirmed: ['st-good', 'Confirmed'], failed_validation: ['st-crit', 'Failed validation'] };
 const MS = { research_only: ['st-warn', 'Research only'], candidate: ['st-info', 'Candidate'], approved_candidate: ['st-good', 'Approved candidate'], rejected: ['st-mute', 'Rejected'], archived: ['st-mute', 'Archived'], synthetic_fixture: ['st-warn', 'Synthetic fixture'] };
 const tag = (m, k) => `<span class="status ${(m[k] || ['st-mute'])[0]}">${(m[k] || [0, k])[1]}</span>`;
@@ -14,7 +14,7 @@ const prov = (p) => (p === 'SYNTHETIC' ? '<span class="badge" style="background:
 
 export async function render(el, st) {
   ST = st;
-  const want = params().get('tab') || 'datasets';
+  const want = params().get('tab') || 'inventory';
   el.innerHTML = `
   <div class="page-head"><div><h1>Data and models</h1><p>Load historical data, check its quality, train and compare models, and see where each data source stands. Historical work here is separate from any future live connection.</p></div></div>
   ${auditNote(st.boot.audit)}
@@ -23,10 +23,10 @@ export async function render(el, st) {
   const show = (k) => {
     clearTimeout(timer);
     el.querySelectorAll('[data-tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === k)));
-    ({ datasets, training, registry, sources })[k](document.getElementById('mdBody')).catch((e) => { if (!e.cancelled) toast(e.message, true); });
+    ({ inventory, datasets, training, registry, efficiency, sources })[k](document.getElementById('mdBody')).catch((e) => { if (!e.cancelled) toast(e.message, true); });
   };
   el.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => show(b.dataset.tab)));
-  show(TABS.some((x) => x[0] === want) ? want : 'datasets');
+  show(TABS.some((x) => x[0] === want) ? want : 'inventory');
 }
 
 // ------------------------------------------------------------------ datasets
@@ -97,6 +97,7 @@ function metricsHTML(m, id) {
       <p class="hint" style="margin:10px 0 0"><b>Held-out areas:</b> ${m.geographic_holdout.pr_auc == null ? NODATA : `PR-AUC ${m.geographic_holdout.pr_auc.toFixed(3)}`} when whole 500 m blocks are kept out of training.</p></div>
       <div><b style="font-size:13px">Calibration: predicted against observed</b><div class="chart sm" id="cal${id}"></div></div></div>
     <b style="font-size:13px;display:block;margin-top:14px">Most used inputs (share of model gain)</b><div class="chart" id="fi${id}" style="height:${Math.min(12, m.feature_importance.length) * 22 + 40}px"></div>
+    ${m.efficiency ? `<b style="font-size:13px;display:block;margin:14px 0 8px">Computational cost</b><div class="kvs"><div><span>Inference</span>${m.efficiency.ms_per_1000_rows} ms per 1,000 rows</div><div><span>Model size</span>${m.efficiency.model_bytes ? `${fmt.n(m.efficiency.model_bytes / 1024, 0)} KB` : NODATA}</div><div><span>Training time</span>${m.efficiency.train_seconds ?? NODATA} s</div><div><span>Peak training memory</span>${m.efficiency.peak_memory_mb ? `${fmt.n(m.efficiency.peak_memory_mb, 0)} MB` : NODATA}</div></div><p class="hint" style="margin:6px 0 12px">${esc(m.efficiency.measured_on)}. ${esc(m.efficiency.note)}</p>` : ''}
     <details class="tech"><summary>Reproducibility</summary><div>Dataset D${m.dataset.id} v${m.dataset.version} (${esc(m.dataset.provenance)}), fingerprint <span class="mono">${esc(String(m.dataset.sha256).slice(0, 16))}</span>.<br>Prediction hash <span class="mono" style="word-break:break-all">${esc(m.predictions_sha256)}</span>.<br>The same dataset, settings and seed give the same hash.</div></details>`;
 }
 function metricsCharts(m, id) {
@@ -156,12 +157,13 @@ async function registry(box) {
   const base = (m) => (m.metrics?.baselines ? Math.max(...Object.values(m.metrics.baselines).map((b) => b.pr_auc || 0)) : null);
   const t = table([
     { h: 'Model', f: (m) => `<span class="mono">${esc(m.id)}</span>${m.id.startsWith(r.displayed) ? ' <span class="badge">displayed</span>' : ''}` }, { h: 'Target', f: (m) => `${m.target} · ${m.horizon}-day` },
-    { h: 'Status', f: (m) => tag(MS, m.status) }, { h: 'PR-AUC', r: 1, f: (m) => pr(m)?.toFixed(3) ?? '–' }, { h: 'Best baseline', r: 1, f: (m) => base(m)?.toFixed(3) ?? '–' },
+    { h: 'Status', f: (m) => tag(MS, m.status) }, { h: 'Maturity', f: (m) => esc(m.maturity) }, { h: 'PR-AUC', r: 1, f: (m) => pr(m)?.toFixed(3) ?? '–' }, { h: 'Best baseline', r: 1, f: (m) => base(m)?.toFixed(3) ?? '–' },
     { h: 'Audit warning', f: (m) => (m.audit_warning ? `<span class="status st-crit">${icon('alert')}Applies</span>` : '–') }, { h: 'Notes', f: (m) => `<span style="white-space:normal">${esc(m.notes || '')}</span>` },
     { h: '', f: (m) => `<label class="check"><input type="checkbox" data-cmp="${esc(m.id)}"> compare</label>${can && ['candidate', 'approved_candidate'].includes(m.status) ? ` <button class="btn sm" data-dec="${esc(m.id)}">Decide</button>` : ''}${m.training_run_id ? ` <a class="btn sm ghost" href="#/map" data-show="${esc(m.id)}">Map</a>` : ''}` },
   ], r.models, { empty: 'No models registered.' });
   box.innerHTML = `${card(`Model registry · ${r.models.length}`, t.html, { flush: true, sub: `RINDA displays ${esc(r.displayed)}. Training never replaces it.`, foot: '<span>Promotion needs an administrator decision with a written reason. Evaluation scores alone are not validation.</span>' })}
-    <div id="cmp" style="margin-top:18px"></div>`;
+    <div id="cmp" style="margin-top:18px"></div>
+    <div style="margin-top:18px">${card('What the maturity levels mean', `<div class="list">${r.maturity_levels.map((x) => `<div><span><b>${esc(x.level)}</b></span><span class="sub" style="text-align:right;white-space:normal;max-width:70%">${esc(x.meaning)}</span></div>`).join('')}</div>`, { flush: true })}</div>`;
   const cmp = () => {
     const ids = [...box.querySelectorAll('[data-cmp]:checked')].map((x) => x.dataset.cmp).slice(0, 4);
     const ms = r.models.filter((m) => ids.includes(m.id));
@@ -200,4 +202,44 @@ async function sources(box) {
   box.querySelectorAll('[data-run]').forEach((b) => b.addEventListener('click', async () => {
     try { const x = await api.post(`/api/connectors/${b.dataset.run}/run`); toast(x.status === 'unavailable' ? `Not connected. ${x.message}` : x.message, x.status === 'unavailable'); sources(box); } catch (er) { toast(er.message, true); }
   }));
+}
+
+// ---------------------------------------------------------------- inventory
+async function inventory(box) {
+  const r = await api.get('/api/earth/inventory');
+  const years = [...new Set(r.collections.flatMap((c) => Object.keys(c.by_year)))].sort();
+  const dyn = r.collections.filter((c) => Object.keys(c.by_year).length);
+  const t = table([
+    { h: 'Dataset', f: (c) => `<b>${esc(c.label)}</b><br><span class="hint">${esc(c.kind)} · ${esc(c.source)}</span>` },
+    { h: 'Scenes', r: 1, f: (c) => (c.scenes == null ? NODATA : fmt.n(c.scenes)) }, { h: 'Period', f: (c) => (c.first ? `${c.first} to ${c.last}` : 'Static layer') },
+    { h: 'Resolution', r: 1, f: (c) => `${c.resolution_m} m` }, { h: 'Median cloud', r: 1, f: (c) => (c.median_cloud_pct == null ? '–' : `${c.median_cloud_pct}%`) },
+    { h: 'Scenes under 20% cloud', r: 1, f: (c) => c.clear_scenes ?? '–' },
+    { h: 'What RINDA holds', f: (c) => `<span style="white-space:normal">${esc(c.held)}</span>` }, { h: 'Quality', f: (c) => `<span style="white-space:normal">${esc(c.quality)}</span>` },
+  ], r.collections, { max: 620 });
+  box.innerHTML = `<div class="note" style="margin-bottom:18px">${icon('info')} ${esc(r.note)}</div>
+    ${card('Earth-observation and reference data · ' + esc(r.period), t.html, { flush: true })}
+    <div class="grid g-main" style="margin-top:18px">
+      ${card('Scenes catalogued per year', '<div class="chart lg" id="invY"></div>', { sub: 'One line per collection', foot: '<span>2026 is a part year.</span>' })}
+      ${card(esc(r.weather.label), `<p style="margin:0 0 8px">${esc(r.weather.held)}</p><p class="hint" style="margin:0">${esc(r.weather.quality)}</p>`, { sub: 'Weather record', foot: '<a href="#/network">Station record</a>' })}
+    </div>`;
+  chart('invY', { grid: { left: 44, right: 16, top: 40, bottom: 28 }, legend: { data: dyn.map((c) => c.label) }, xAxis: { type: 'category', data: years }, yAxis: { type: 'value' },
+    series: dyn.map((c, i) => ({ name: c.label, type: 'line', symbolSize: 7, data: years.map((y) => c.by_year[y] ?? null), lineStyle: { width: 2, color: css(`--s-${i + 1}`) }, itemStyle: { color: css(`--s-${i + 1}`) } })) });
+}
+
+// --------------------------------------------------------------- efficiency
+async function efficiency(box) {
+  const r = await api.get('/api/models/efficiency');
+  const e = r.edge;
+  box.innerHTML = `<div class="grid g-2">
+    ${card('Forecast models on this server', table([
+      { h: 'Model', f: (m) => `<span class="mono">${esc(m.model)}</span>` }, { h: 'Inputs', r: 1, f: (m) => m.n_features ?? '–' },
+      { h: 'One forecast issue', r: 1, f: (m) => (m.issue_latency_ms == null ? NODATA : `${m.issue_latency_ms} ms for ${fmt.n(m.rows_timed)} locations`) },
+      { h: 'Per 1,000 rows', r: 1, f: (m) => (m.ms_per_1000_rows == null ? NODATA : `${m.ms_per_1000_rows} ms`) },
+      { h: 'Model file', r: 1, f: (m) => (m.model_bytes ? `${fmt.n(m.model_bytes / 1e6, 1)} MB` : NODATA) },
+    ], r.served).html + `<div class="card-b"><div class="kvs"><div><span>Server memory in use</span>${r.process_rss_mb ? `${fmt.n(r.process_rss_mb, 0)} MB` : NODATA}</div><div><span>Measured on</span>${esc(r.hardware)}</div></div><p class="hint" style="margin:10px 0 0">${esc(r.scope)} Each trained candidate also records its own inference time, size and training memory under Training runs.</p></div>`, { flush: true, sub: 'Measured just now' })}
+    ${card('Edge deployment readiness', `<div style="margin-bottom:10px"><span class="status st-mute">${esc(e.status)}</span></div>
+      <div class="kvs" style="grid-template-columns:1fr"><div><span>Target hardware</span>${esc(e.target)}</div><div><span>What it applies to</span>${esc(e.applies_to)}</div></div>
+      <p style="margin:12px 0 6px;font-weight:600;font-size:13px">Measurements still needed</p><ul style="margin:0;padding-left:18px;color:var(--ink-2)">${e.required.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+      <p class="hint" style="margin:10px 0 0">${esc(e.where)} ${e.flight_logs.note ? esc(e.flight_logs.note) : e.flight_logs.available ? '' : 'No flight log has been loaded.'}</p>`, { sub: 'Objective 3', foot: '<a href="#/flight">Flight performance</a>' })}
+  </div>`;
 }

@@ -42,6 +42,7 @@ import ops
 import planner as P
 import programme
 import reporting
+import research
 import rules as R
 import security as S
 import surveillance as V
@@ -65,6 +66,17 @@ def jlog(**kv) -> None:
     log.info(json.dumps({"ts": db.now(), **kv}, default=str))
 
 
+def _release_startup_memory() -> None:
+    """Hand memory freed during start-up back to the system (glibc only), so request peaks start lower."""
+    import ctypes
+    import gc
+    gc.collect()
+    try:
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except (OSError, AttributeError):
+        pass  # not glibc: nothing to do
+
+
 @asynccontextmanager
 async def lifespan(_app):
     store()
@@ -75,10 +87,12 @@ async def lifespan(_app):
         jlog(event="admin.bootstrap", credential_location=where if where == "environment" else "var/initial_admin.txt")
     S.ensure_demo_users()
     C.seed_sources()
-    C.seed_products()
+    research.seed_products()
     G.seed_areas()
     D.seed_study_tables()
     V.seed_registry()
+    G.site_areas()
+    _release_startup_memory()
     ops.audit("system", "engine.ready", f"engine {ENGINE_VERSION} schema {db.schema_version()}")
     jlog(event="startup", engine=ENGINE_VERSION, demo=S.DEMO, public_read=S.PUBLIC_READ)
     yield
@@ -1079,6 +1093,7 @@ api.include_router(programme.router)
 api.include_router(V.router)
 api.include_router(D.router)
 api.include_router(reporting.router)
+api.include_router(research.router)
 app.include_router(api, prefix="/api/v1")
 app.include_router(api, prefix="/api", include_in_schema=False)
 

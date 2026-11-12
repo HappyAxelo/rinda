@@ -31,7 +31,7 @@ jobs:
                    /api/assurance /api/evidence /api/meteo /api/meteo/summary "/api/verification?h=7" "/api/bulletin?h=7" \
                    /api/v1/overview /api/v1/freshness /api/v1/geo/boundaries "/api/v1/map/forecast?h=7" /api/v1/map/earth \
                    "/api/v1/map/earth?date=2025-12-01&compare=2025-06-01" /api/v1/map/iot /api/v1/map/meteo /api/v1/map/entomology \
-                   /api/v1/map/operations /api/v1/dossier/G0442 /api/v1/earth/products; do
+                   /api/v1/map/operations /api/v1/dossier/G0442 /api/v1/earth/products /api/v1/earth/inventory /api/v1/research/alignment; do
             curl -sf "localhost:8740$u" > /dev/null || echo "::error::endpoint failed: $u"
           done
           curl -sf -X POST localhost:8740/api/v1/economics -H 'X-RINDA: 1' -H 'content-type: application/json' -d '{}' > /dev/null

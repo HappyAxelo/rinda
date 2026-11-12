@@ -14,8 +14,10 @@ from __future__ import annotations
 import json
 from collections import Counter, defaultdict
 from datetime import date as Date, timedelta
+from functools import lru_cache
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -314,15 +316,9 @@ def map_earth(date: str | None = None, compare: str | None = None, cell: str | N
     st = store()
     thr = st.water_thresholds
     d = date or st.s1_dates[-1]
-    def snap(day: str) -> pd.DataFrame:
-        at = st.s1[st.s1.date <= pd.Timestamp(day)]
-        last = at.sort_values("date").groupby("site_id", observed=True).tail(2).copy()
-        last["wet"] = (last.vv_db <= thr["vv_db_max"]) & (last.vh_db <= thr["vh_db_max"])
-        return last
-    cur = snap(d)
-    latest = cur.groupby("site_id", observed=True).tail(1).set_index("site_id")
-    prior = cur.groupby("site_id", observed=True).head(1).set_index("site_id")
-    base = snap(compare).groupby("site_id", observed=True).tail(1).set_index("site_id") if compare else None
+    cur_latest, cur_prior = _snap(d, thr)
+    latest, prior = cur_latest, cur_prior
+    base = _snap(compare, thr)[0] if compare else None
     s2 = _s2_at(d)
     sa = G.site_areas()
     rows = []
@@ -344,6 +340,33 @@ def map_earth(date: str | None = None, compare: str | None = None, cell: str | N
             "sentinel1c_note": AUDIT["findings"][1], "products": _products(d)}
 
 
+@lru_cache(maxsize=1)
+def _s1_index():
+    """Row ranges of each site in the radar series, which is stored in site and date order."""
+    st = store()
+    codes = st.s1.site_id.cat.codes.to_numpy()
+    if len(codes) > 1 and (np.diff(codes) < 0).any():  # not grouped by site: sort once and keep the order
+        st.s1 = st.s1.sort_values(["site_id", "date"]).reset_index(drop=True)
+        codes = st.s1.site_id.cat.codes.to_numpy()
+    starts = np.flatnonzero(np.r_[True, codes[1:] != codes[:-1]])
+    return st.s1.date.to_numpy(), starts, np.r_[starts[1:], len(codes)]
+
+
+def _snap(day: str, thr: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Latest and previous radar pass per site on or before a day, without copying the whole series."""
+    dates, starts, ends = _s1_index()
+    cut = np.datetime64(pd.Timestamp(day))
+    k = np.array([x + np.searchsorted(dates[x:y], cut, side="right") - 1 for x, y in zip(starts, ends)])
+    ok = k >= starts
+    k, first = k[ok], starts[ok]
+    prev = np.where(k - 1 >= first, k - 1, k)
+    out = []
+    for idx in (k, prev):
+        f = store().s1.iloc[idx]
+        out.append(f.assign(site_id=f.site_id.astype(str), wet=(f.vv_db <= thr["vv_db_max"]) & (f.vh_db <= thr["vh_db_max"])).set_index("site_id"))
+    return out[0], out[1]
+
+
 def _num(v):
     return None if v is None or pd.isna(v) else round(float(v), 3)
 
@@ -362,7 +385,7 @@ def _s2_at(day: str):
 
 def _products(day: str, limit: int = 12) -> list[dict]:
     with tx() as c:
-        s1 = c.execute("SELECT * FROM raster_products WHERE platform LIKE 'SENTINEL-1%' AND acquired_date<=? ORDER BY acquired_date DESC LIMIT 3", (day,)).fetchall()
+        s1 = c.execute("SELECT * FROM raster_products WHERE storage_ref LIKE '%sentinel-1-rtc%' AND acquired_date<=? ORDER BY acquired_date DESC LIMIT 3", (day,)).fetchall()
         s2 = c.execute("SELECT * FROM raster_products WHERE platform LIKE 'SENTINEL-2%' AND acquired_date<=? ORDER BY acquired_date DESC LIMIT 3", (day,)).fetchall()
     return [dict(r) for r in [*s1, *s2]][:limit]
 
@@ -636,6 +659,14 @@ def seed_registry() -> None:
             c.execute("INSERT OR IGNORE INTO model_registry (id, target, horizon, version, status, metrics, audit_warning, notes, created_utc) VALUES (?,?,?,?,?,?,?,?,?)", (*e, now()))
 
 
+# A model is "validated" only after field validation, which no model has had.
+MATURITY = {"research_only": "Experimental", "candidate": "Experimental", "synthetic_fixture": "Test fixture, not a model", "rejected": "Rejected", "archived": "Archived",
+            "approved_candidate": "Suitable for controlled operational evaluation", "validated": "Validated"}
+MATURITY_LEVELS = [{"level": "Experimental", "meaning": "Research use only. Scores come from historical data."},
+                   {"level": "Suitable for controlled operational evaluation", "meaning": "Approved by an administrator with a written reason, for a supervised trial. Still not proof of field performance."},
+                   {"level": "Validated", "meaning": "Confirmed against independent field observations in a registered evaluation. No RINDA model has reached this level."}]
+
+
 class RunIn(BaseModel):
     target: str = Field(pattern=r"^[A-E]$")
     horizon: int = 7
@@ -714,7 +745,8 @@ def list_models(u: User = Depends(require("read:models"))):
     for r in rows:
         r["metrics"] = json.loads(r["metrics"]) if r["metrics"] else None
         r.pop("path", None)
-    return {"models": rows, "displayed": "v3", "audit": AUDIT}
+        r["maturity"] = MATURITY.get(r["status"], "Experimental")
+    return {"models": rows, "displayed": "v3", "audit": AUDIT, "maturity_levels": MATURITY_LEVELS}
 
 
 class Decision(BaseModel):

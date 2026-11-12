@@ -452,4 +452,61 @@ def test_console_files_and_offline_shell(app):
     assert app.get("/api/v1/overview", headers={"accept-encoding": "gzip"}).headers.get("content-encoding") == "gzip"
 
 
+# ------------------------------------------------- research and efficiency
+def test_research_alignment_cites_only_listed_references(app):
+    a = app.get("/api/v1/research/alignment").json()
+    assert len(a["gaps"]) == 10 and len(a["objectives"]) == 3 and a["challenges"]
+    for g in a["gaps"]:
+        for k in ("accomplished", "limitations", "gap", "rinda", "objective", "evaluation", "status"):
+            assert g[k], (g["id"], k)
+        assert all(r in a["references"] for r in g["refs"])
+    assert all(r["doi"].startswith("10.") for r in a["references"].values())
+    assert {o["id"] for o in a["objectives"]} == {"Objective 1", "Objective 2", "Objective 3"}
+
+
+def test_earth_inventory_says_what_is_held(app):
+    inv = app.get("/api/v1/earth/inventory").json()
+    by = {c["key"]: c for c in inv["collections"]}
+    assert {"sentinel-1-rtc", "sentinel-1-grd", "sentinel-2-l2a", "landsat-c2-l2", "copernicus-dem-glo30", "jrc-gsw-v1.3"} <= set(by)
+    assert by["landsat-c2-l2"]["scenes"] > 500 and by["landsat-c2-l2"]["resolution_m"] == 30 and "metadata only" in by["landsat-c2-l2"]["held"].lower()
+    assert by["sentinel-2-l2a"]["median_cloud_pct"] is not None and by["sentinel-1-rtc"]["median_cloud_pct"] is None
+    assert min(by["sentinel-1-rtc"]["by_year"]) == "2020" and by["sentinel-1-grd"]["first"] >= "2020-01-01"
+    assert by["copernicus-dem-glo30"]["first"] is None and by["copernicus-dem-glo30"]["scenes"] == 1
+    assert sum(by["sentinel-1-rtc"]["by_year"].values()) == by["sentinel-1-rtc"]["scenes"]
+    e = app.get("/api/v1/map/earth?date=2025-12-01").json()
+    assert all("rtc" in p["storage_ref"] or p["platform"].startswith("SENTINEL-2") for p in e["products"])
+
+
+def test_efficiency_is_measured_and_edge_is_not_claimed(roles):
+    r = roles["analyst"].get("/api/v1/models/efficiency").json()
+    assert [m["horizon"] for m in r["served"]] == [7, 14]
+    for m in r["served"]:
+        assert m["issue_latency_ms"] > 0 and m["rows_timed"] > 400 and m["model_bytes"] > 1_000_000 and "error" not in m
+    assert r["edge"]["status"] == "Not measured" and "Jetson" in r["edge"]["target"] and len(r["edge"]["required"]) >= 4
+    assert "not the drone" in r["scope"]
+    assert roles["viewer"].get("/api/v1/models/efficiency").status_code == 403
+    import training as T
+    m = T.train(fixture_table(), "A", 7, {"n_estimators": 30}, seed=1)["metrics"]["efficiency"]
+    assert m["ms_per_1000_rows"] > 0 and "Not an edge-device measurement" in m["note"]
+
+
+def test_drone_operator_flies_but_does_not_decide(app):
+    op = client_as("drone_operator")
+    me = op.get("/api/v1/auth/me").json()
+    assert me["role_label"] == "Drone operator" and "plan:mission" in me["permissions"]
+    assert op.get("/api/v1/interventions").status_code == 200
+    mid = op.post("/api/v1/missions/plan", json={"h": 7, "date": "2025-09-17", "save": True}, headers=W).json()["id"]
+    assert op.post(f"/api/v1/missions/{mid}/status", json={"status": "APPROVED"}, headers=W).status_code == 403
+    assert op.post("/api/v1/interventions", json={"observation_id": 1, "method": "bti_drone", "protocol_ref": "SOP-1", "habitat_suitability": "suitable_for_drone"}, headers=W).status_code == 403
+    assert op.post("/api/v1/observations/1/review", json={"decision": "verified"}, headers=W).status_code == 403
+    assert op.get("/api/v1/datasets").status_code == 403 and op.get("/api/v1/admin/users").status_code == 403
+
+
+def test_model_maturity_is_never_overstated(roles):
+    reg = roles["analyst"].get("/api/v1/models").json()
+    assert {m["maturity"] for m in reg["models"]} <= {"Experimental", "Archived", "Rejected", "Test fixture, not a model", "Suitable for controlled operational evaluation"}
+    assert next(m for m in reg["models"] if m["id"] == "v3-h7")["maturity"] == "Experimental"
+    assert [x["level"] for x in reg["maturity_levels"]] == ["Experimental", "Suitable for controlled operational evaluation", "Validated"]
+
+
 __all__ = ["io"]

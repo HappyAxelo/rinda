@@ -53,42 +53,6 @@ def seed_sources() -> None:
                       "VALUES (?,?,?,?,?,?,?)", (key, name, domain, "historical", origin, days, notes))
 
 
-def seed_products() -> int:
-    """Real scene metadata from the satellite repository catalogues."""
-    cat = ROOT / "study" / "catalogue"
-    rows = []
-    p1 = cat / "catalogue_sentinel-1-rtc.csv"
-    if p1.exists():
-        for r in pd.read_csv(p1).to_dict("records"):
-            pt = r.get("s1:processing_datetime")
-            rows.append((r["item_id"], "earth_observation", r.get("platform"), r.get("datetime"), r.get("date"),
-                         None if pd.isna(pt) else str(pt), 10.0, None, _int(r.get("sat:relative_orbit")),
-                         r.get("sat:orbit_state"), "Radiometric terrain correction (Planetary Computer sentinel-1-rtc)",
-                         "planetarycomputer:sentinel-1-rtc", "catalogue", "not field-validated"))
-    p2 = cat / "catalogue_sentinel-2-l2a.csv"
-    if p2.exists():
-        for r in pd.read_csv(p2).to_dict("records"):
-            tail = str(r["item_id"]).rsplit("_", 1)[-1]
-            proc = f"{tail[:4]}-{tail[4:6]}-{tail[6:8]}T{tail[9:11]}:{tail[11:13]}:{tail[13:15]}Z" if len(tail) == 15 else None
-            rows.append((r["item_id"], "earth_observation", r.get("platform"), r.get("datetime"), r.get("date"),
-                         proc, 10.0, _float(r.get("eo:cloud_cover")), _int(r.get("sat:relative_orbit")), None,
-                         f"Level-2A surface reflectance, baseline {r.get('s2:processing_baseline')}",
-                         f"planetarycomputer:sentinel-2-l2a/{r.get('s2:mgrs_tile')}", "catalogue", "not field-validated"))
-    with tx() as c:
-        c.executemany("INSERT OR IGNORE INTO raster_products (product_id, source_key, platform, acquired_utc, acquired_date, "
-                      "processed_utc, resolution_m, cloud_pct, relative_orbit, orbit_state, processing_method, storage_ref, "
-                      "provenance, validation_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
-    return len(rows)
-
-
-def _int(v):
-    return None if v is None or pd.isna(v) else int(v)
-
-
-def _float(v):
-    return None if v is None or pd.isna(v) else float(v)
-
-
 # ---------------------------------------------------------------- normalise
 def _ts(v) -> str | None:
     try:
