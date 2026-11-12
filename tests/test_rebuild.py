@@ -445,7 +445,7 @@ def test_console_files_and_offline_shell(app):
         js = app.get(f"/js/views/{v}.js")
         assert js.status_code == 200 and "export async function render" in js.text
     html = app.get("/").text
-    assert 'data-theme="light"' in html and "Public Sans" in html and "AI" not in html.replace("RINDA", "")
+    assert 'data-theme="light"' in html and "Public+Sans" in html and "AI" not in html.replace("RINDA", "")
     assert "tile.openstreetmap.org" in app.get("/").headers["content-security-policy"]
     off = app.get("/js/offline.js").text
     assert "return ok" in off  # a refused save is reported, never swallowed
