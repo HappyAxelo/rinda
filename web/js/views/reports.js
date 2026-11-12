@@ -17,7 +17,7 @@ export async function render(el, st) {
   const q = () => [R.start && `start=${R.start}`, R.end && `end=${R.end}`].filter(Boolean).join('&');
   el.innerHTML = `
   <div class="page-head">
-    <div><h1>Monitoring, impact and reporting</h1><p>Programme activity and surveillance findings, counted from records held in RINDA.</p></div>
+    <div><h1>Monitoring, impact and reporting</h1><p>Programme activity and surveillance findings, from recorded data.</p></div>
     <div class="actions" id="rpActions"></div>
   </div>
   <form class="filterbar" id="rpF"><div class="field"><label for="rpS">From</label><input type="date" id="rpS" value="${R.start}"></div><div class="field"><label for="rpE">To</label><input type="date" id="rpE" value="${R.end}"></div>

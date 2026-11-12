@@ -7,7 +7,7 @@
 // * Writes are never cached or replayed here: observations recorded offline go
 //   through the idempotent queue in js/offline.js.
 // * Signing out deletes the saved API answers (see app.js).
-const SHELL = 'rinda-shell-v3';
+const SHELL = 'rinda-shell-v4';
 const API = 'rinda-api-v2';
 const VIEWS = ['admin', 'assurance', 'bulletins', 'dossier', 'drone', 'evidence', 'field', 'flight', 'forecast', 'governance', 'help', 'impact',
   'issue', 'map', 'missions', 'models', 'network', 'overview', 'programme', 'replay', 'reports', 'research', 'scenario'];

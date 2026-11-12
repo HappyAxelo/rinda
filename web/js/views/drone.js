@@ -22,7 +22,7 @@ export async function render(el, st) {
   ], ms, { empty: 'No missions planned yet.', max: 440 });
   el.innerHTML = `
   <div class="page-head">
-    <div><h1>Drone operations</h1><p>Plan flights, get them approved, export the flight files and record what happened. No mission file contains a spray command.</p></div>
+    <div><h1>Drone operations</h1><p>Mission planning, approval, flight files and flight records. Mission files carry no spray command.</p></div>
     <div class="actions">${can ? `<a class="btn" href="#/missions">${icon('eye')}Plan inspection flight</a><button class="btn primary" id="newTreat">${icon('send')}Plan treatment mission</button>` : '<span class="hint">Planning needs an analyst or supervisor account.</span>'}</div>
   </div>
   <div class="stats" style="margin-bottom:18px">

@@ -251,14 +251,14 @@ function onboarding(force = false) {
   let seen = false;
   try { seen = localStorage.getItem('rinda.onboarded') === '3'; } catch (e) {}
   if (seen && !force) return;
-  const d = modal('Welcome to RINDA', `
+  const d = modal('Reading the evidence', `
     <ol class="steps" style="margin:0;padding:0">
-      <li><div><b>One map, several kinds of evidence.</b> Satellite, sensor, weather, field and operational records sit on the same map. Each is labelled with where it came from and when.</div></li>
-      <li><div><b>A forecast is a lead, not a finding.</b> It suggests where new surface water may appear. It is research-only, and it never confirms mosquito breeding.</div></li>
-      <li><div><b>Only field work confirms a habitat.</b> An officer inspects and dips, a supervisor reviews, and only a verified finding can lead to an authorised treatment.</div></li>
-      <li><div><b>"No data available" means exactly that.</b> RINDA never shows a zero or an estimate in place of a missing record.</div></li>
+      <li><div>Each record on the map carries its source and date. Satellite, sensor, weather, field and operational records are shown separately.</div></li>
+      <li><div>A forecast marks where new surface water may appear. It is a research output and does not indicate mosquito breeding.</div></li>
+      <li><div>A habitat is confirmed by inspection and dipping, reviewed by a supervisor. Treatment follows a verified finding.</div></li>
+      <li><div>Where no record exists the system shows "No data available".</div></li>
     </ol>
-    <div class="actions"><button class="btn primary" id="obDone">Start</button><a class="btn" href="#/help" id="obHelp">${icon('help')}Open the guide</a></div>`);
+    <div class="actions"><button class="btn primary" id="obDone">Continue</button><a class="btn" href="#/help" id="obHelp">${icon('help')}Open the guide</a></div>`);
   const done = () => { try { localStorage.setItem('rinda.onboarded', '3'); } catch (e) {} d.close(); };
   d.querySelector('#obDone').addEventListener('click', done);
   d.querySelector('#obHelp').addEventListener('click', done);
@@ -327,6 +327,7 @@ async function boot() {
   const b = state.boot;
   state.date = b.horizons[7].dates.at(-1);
   document.getElementById('buildTag').textContent = `v${b.product.version}`;
+  document.getElementById('foot').innerHTML = `<span>RINDA ${esc(b.product.version)} · ${esc(b.tenant.name)}, ${esc(b.tenant.district)} District</span><span>Radar record to ${fmt.date(b.s1_last)} · weather record to ${fmt.date(b.meteo_last)}</span><span>Research stage. Not validated for intervention decisions.</span>`;
   fillDates();
 
   document.querySelectorAll('#hSeg button').forEach((x) => x.addEventListener('click', () => setH(+x.dataset.h)));

@@ -229,16 +229,16 @@ function theme(o) {
   const ink2 = css('--ink-2'), ink3 = css('--ink-3'), grid = css('--grid'), line = css('--line-2'), s1 = css('--s1');
   const axis = (a) => ({
     axisLine: { lineStyle: { color: line } }, axisTick: { show: false },
-    axisLabel: { color: ink3, fontFamily: 'Inter, system-ui, sans-serif', fontSize: 11.5, hideOverlap: true },
+    axisLabel: { color: ink3, fontFamily: 'Public Sans, system-ui, sans-serif', fontSize: 11.5, hideOverlap: true },
     splitLine: { lineStyle: { color: grid } }, nameTextStyle: { color: ink3, fontSize: 11 }, ...a,
   });
   const fix = (a) => (Array.isArray(a) ? a.map(axis) : a ? axis(a) : a);
   return {
-    animationDuration: 500, textStyle: { fontFamily: 'Inter, system-ui, sans-serif', color: ink2 },
+    animationDuration: 500, textStyle: { fontFamily: 'Public Sans, system-ui, sans-serif', color: ink2 },
     grid: { left: 48, right: 16, top: 26, bottom: 32, containLabel: false },
     tooltip: {
       trigger: 'axis', backgroundColor: s1, borderColor: line, borderWidth: 1, padding: [7, 10],
-      textStyle: { color: css('--ink'), fontSize: 12 }, extraCssText: 'box-shadow:0 6px 20px rgba(38,51,46,.14);border-radius:8px',
+      textStyle: { color: css('--ink'), fontSize: 12 }, extraCssText: 'box-shadow:0 4px 14px rgba(38,51,46,.12);border-radius:3px',
       axisPointer: { lineStyle: { color: line }, crossStyle: { color: line } },
     },
     legend: { textStyle: { color: ink2, fontSize: 11.5 }, itemWidth: 12, itemHeight: 8, top: 0, right: 0, icon: 'roundRect' },
@@ -336,7 +336,7 @@ export const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : 'u' + Date.
 export const NODATA = 'No data available';
 export const val = (v, d = 0) => (v == null ? `<span class="nodata">${NODATA}</span>` : fmt.n(v, d));
 export const stat = (label, value, meta = '', ic = 'info', tone = '') => `
-  <section class="stat"><div class="ic ${tone}">${icon(ic)}</div><div class="l">${label}</div>
+  <section class="stat ${tone}" data-ic="${ic}"><div class="l">${label}</div>
   ${value == null ? `<div class="v none">${NODATA}</div>` : `<div class="v">${typeof value === 'number' ? fmt.n(value) : value}</div>`}
   ${meta ? `<div class="m">${meta}</div>` : ''}</section>`;
 export const pill = (label) => `<span class="pill ${esc(String(label).split(' ')[0])}">${esc(label)}</span>`;

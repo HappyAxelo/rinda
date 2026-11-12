@@ -16,7 +16,7 @@ export async function render(el, st) {
   ST = st;
   const want = params().get('tab') || 'inventory';
   el.innerHTML = `
-  <div class="page-head"><div><h1>Data and models</h1><p>Load historical data, check its quality, train and compare models, and see where each data source stands. Historical work here is separate from any future live connection.</p></div></div>
+  <div class="page-head"><div><h1>Data and models</h1><p>Historical data holdings, quality checks, training runs and the model register.</p></div></div>
   ${auditNote(st.boot.audit)}
   <div class="tabs" role="tablist" style="margin-top:18px">${TABS.map(([k, l]) => `<button role="tab" data-tab="${k}" aria-selected="${k === want}">${l}</button>`).join('')}</div>
   <div id="mdBody"></div>`;

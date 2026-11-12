@@ -10,9 +10,9 @@ export async function render(el) {
   const a = await api.get('/api/research/alignment');
   const ref = (k) => { const r = a.references[k]; return r ? `<a href="https://doi.org/${esc(r.doi)}" target="_blank" rel="noopener">${esc(r.cite)}</a>` : esc(k); };
   el.innerHTML = `
-  <div class="page-head"><div><h1>Research alignment</h1><p>What published work has done, what is still open, and how each part of RINDA answers a research objective. Prepared ${esc(a.prepared)} from the PhD proposal, its reference list and the scoping review of 140 studies.</p></div>
+  <div class="page-head"><div><h1>Research alignment</h1><p>Published evidence, open gaps and the research objective each module serves. Prepared ${esc(a.prepared)}.</p></div>
     <div class="actions"><a class="btn" href="#/evidence">${icon('alignment')}Evidence chain</a><a class="btn" href="#/assurance">${icon('assurance')}Model assurance</a></div></div>
-  <div class="note" style="margin-bottom:18px">${icon('info')} <b>How to read this page.</b> Three kinds of statement are kept apart: published evidence, this project's own findings (not yet peer reviewed), and proposed contributions that have not been tested. ${esc(a.sources.not_done)}</div>
+  <div class="note" style="margin-bottom:18px">Published evidence, project findings that are not yet peer reviewed, and untested proposals are labelled separately. ${esc(a.sources.not_done)}</div>
 
   <h2 style="font-size:18px;margin:0 0 12px">Objectives and the modules that serve them</h2>
   <div class="grid g-3" style="margin-bottom:26px">${a.objectives.map((o) => card(`${esc(o.id)} · ${esc(o.questions)}`, `

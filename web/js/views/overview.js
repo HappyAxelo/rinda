@@ -14,7 +14,7 @@ export async function render(el, st) {
   const qs = () => Object.entries(F).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
   el.innerHTML = `
   <div class="page-head">
-    <div><h1>National situation overview</h1><p>Where surveillance is taking place, what evidence is held, and what needs attention. Counts come only from records in RINDA.</p></div>
+    <div><h1>National situation overview</h1><p>Surveillance coverage, evidence held and work outstanding.</p></div>
     <div class="actions"><a class="btn primary" href="#/map">${icon('map')}Open surveillance map</a></div>
   </div>
   <form class="filterbar" id="ovF" aria-label="Filters">
@@ -51,7 +51,7 @@ export async function render(el, st) {
       ${stat('Treatments completed', c.treatments_completed, '', 'check')}
       ${stat('Follow-up due', c.follow_up_due, 'Treated, with no follow-up scheduled', 'replay', 'amber')}
     </div>
-    <p class="hint" style="margin:10px 2px 18px">${esc(o.scope)}. "${esc(o.no_data_label)}" means RINDA holds no records for that count; it is never shown as zero.</p>
+    <p class="hint" style="margin:10px 2px 18px">${esc(o.scope)}. Counts are taken from records. Where none exist the figure reads "${esc(o.no_data_label)}".</p>
     <div class="grid g-main">
       ${card('Surveillance area', '<div class="map-host"><div class="map mid" id="ovMap" role="region" aria-label="Map preview of the surveillance area"></div></div>', { flush: true, sub: 'Gikomero Sector boundary and monitoring locations', foot: `<span>Sector boundary: geoBoundaries, from NISR 2012. Cell boundaries are not loaded.</span><a href="#/map">Open full map ${icon('arrow')}</a>` })}
       <div class="grid" style="align-content:start">
