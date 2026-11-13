@@ -32,8 +32,11 @@ def test_forecast_carries_provenance_and_status(app):
     for k in ("issue_date", "target_date", "valid_window", "generated_utc", "inputs", "model", "spatial_resolution", "units"):
         assert k in m
     assert m["model_status"]["status"] == "research_stage"
-    # the archive ends in January 2026: it must be flagged, never shown as current
-    assert m["status"] == "stale" and any(w["code"] == "stale_forecast" for w in m["warnings"])
+    # stale exactly when the issue is older than the configured limit, and then always flagged
+    assert (m["status"] == "stale") == (m["age_days"] > 7)
+    assert (m["status"] == "stale") == any(w["code"] == "stale_forecast" for w in m["warnings"])
+    old = app.get("/api/v1/forecast?h=7&date=2025-11-26").json()["meta"]
+    assert old["status"] == "stale" and any(w["code"] == "stale_forecast" for w in old["warnings"])
     assert m["inputs"]["radar_last_pass"] <= m["issue_date"] and m["inputs"]["weather_last_day"] <= m["issue_date"]
 
 
@@ -128,7 +131,9 @@ def test_scenario_and_bulletin(app):
     s = app.get("/api/v1/scenario?site=G0221&date=2025-11-26&h=7&rain=2").json()
     assert s["available"] and len(s["curve"]) == 31
     b = app.get("/api/v1/bulletin?h=7").text
-    assert "Habitat Formation Bulletin" in b and "HISTORICAL FORECAST" in b and "research stage" in b
+    assert "Habitat Formation Bulletin" in b and "research stage" in b
+    old = app.get("/api/v1/bulletin?h=7&date=2025-11-26").text
+    assert "HISTORICAL FORECAST" in old
 
 
 def test_upload_size_limit(roles):

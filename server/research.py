@@ -179,7 +179,7 @@ def efficiency(u: User = Depends(require("read:models"))):
         m, tbl = ENGINE.models.get(h), ENGINE.tables.get(h)
         row = {"horizon": h, "model": f"{ENGINE.version}-h{h}", "n_features": len(m.fcols) if m else None}
         try:
-            last = tbl[tbl.date == tbl.date.max()]
+            last = tbl.at_date(tbl.date.max()) if hasattr(tbl, "at_date") else tbl[tbl.date == tbl.date.max()]
             times = []
             for _ in range(5):
                 t0 = time.perf_counter()

@@ -380,7 +380,10 @@ def _s2_at(day: str):
     if avail.empty:
         return None
     d = avail.max()
-    return t[t.date == d].drop_duplicates("site_id").set_index("site_id")
+    cols = ["S2_NDWI_50M", "S2_MNDWI_50M", "S2_AGE_DAYS_50M"]
+    f = t.at_date(d, cols) if hasattr(t, "at_date") else t[t.date == d]
+    f = f.assign(site_id=f.site_id.astype(str))
+    return f.drop_duplicates("site_id").set_index("site_id")
 
 
 def _products(day: str, limit: int = 12) -> list[dict]:
@@ -802,3 +805,72 @@ def push_records(key: str, b: IngestIn, u: User = Depends(require("manage:data")
 
 
 __all__ = ["Path"]
+
+
+# --------------------------------------------------------------------- outlook
+def current_issue() -> dict | None:
+    p = ROOT / "study" / "v3" / "current_issue.json"
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
+
+
+@router.get("/outlook")
+def outlook(u: User = Depends(require("read:forecast"))):
+    """Where things stand today: the latest forecast for the next 7 and 14 days, the weather
+    forecast as retrieved, and what each means for inspection and treatment. A forecast never
+    recommends spraying; the treatment lines come from field records only."""
+    st, today, cur, sa = store(), R.today(), current_issue(), G.site_areas()
+    horizons = []
+    for h in (7, 14):
+        d, f = st.forecast(h, None)
+        meta = R.forecast_meta(h, d)
+        f = f.assign(cat=[R.category(c, p) for c, p in zip(f.conformal_decision, f.probability)])
+        hi = f[f.cat == "high"].sort_values("probability", ascending=False)
+        n_hi, n_ins = int(len(hi)), int((f.cat == "insufficient").sum())
+        in_sec = int(sum(bool(sa.get(s, {}).get("in_sector")) for s in hi.site_id))
+        target = Date.fromisoformat(meta["target_date"])
+        stale = meta["status"] == "stale"
+        text = (f"Issued {d} from that day's radar pass. By {target.isoformat()}, {n_hi} of {len(f)} dry monitoring locations show a "
+                f"potential new-water signal ({in_sec} inside Gikomero Sector) and {n_ins} cannot be classified.")
+        if stale:
+            text = f"No forecast has been issued for {meta['age_days']} days. The last one: " + text
+        horizons.append({"horizon": h, "issue_date": d, "target_date": meta["target_date"], "days_to_target": (target - today).days,
+                         "age_days": meta["age_days"], "state": "Forecast stale" if stale else "Current research forecast", "locations": int(len(f)),
+                         "potential_signal": n_hi, "potential_signal_in_sector": in_sec, "evidence_insufficient": n_ins, "lower": int((f.cat == "lower").sum()),
+                         "text": text, "model_trained_to": (cur or {}).get("horizons", {}).get(str(h), {}).get("model_trained_to"),
+                         "top": [{"site_id": r.site_id, "probability": round(float(r.probability), 2), "in_sector": bool(sa.get(r.site_id, {}).get("in_sector"))}
+                                 for r in hi.head(12).itertuples()]})
+    wx = None
+    if cur and cur.get("weather_outlook", {}).get("days"):
+        days = [x for x in cur["weather_outlook"]["days"] if x["rain_mm"] is not None]
+        w7, w14 = days[:7], days[7:14]
+        wx = {"source": cur["weather_outlook"]["source"], "retrieved_utc": cur["weather_outlook"].get("retrieved_utc"), "from": days[0]["date"] if days else None,
+              "rain_7d_mm": round(sum(x["rain_mm"] for x in w7), 1), "wet_days_7d": sum(x["rain_mm"] >= 1 for x in w7),
+              "rain_8_14d_mm": round(sum(x["rain_mm"] for x in w14), 1) if w14 else None, "wet_days_8_14d": sum(x["rain_mm"] >= 1 for x in w14) if w14 else None,
+              "days": days[:14], "note": "A numerical weather forecast as retrieved on that date. It is context only: rainfall added no measurable skill to the water forecast."}
+    idx = field_index()
+    statuses = Counter(site_status(r) for r in idx["by"].values())
+    waiting = [i for i in idx["ivs"] if i["status"] == "authorized"]
+    h7 = horizons[0]
+    inspect_n = h7["potential_signal"]
+    guidance = [
+        {"action": "Inspect", "n": inspect_n, "tone": "warn" if inspect_n and h7["state"] != "Forecast stale" else "info",
+         "text": (f"Assign field inspections to the {inspect_n} locations with a potential new-water signal before {h7['target_date']}. Check for water and dip for larvae."
+                  if inspect_n and h7["state"] != "Forecast stale" else
+                  "The last forecast is out of date, so it gives no basis for new inspections. Continue routine surveillance." if h7["state"] == "Forecast stale" else
+                  "No location shows a potential new-water signal in this issue. Continue routine surveillance.")
+                 + (f" {h7['evidence_insufficient']} locations cannot be classified by the model; inspect those in areas of programme concern."
+                    if h7["evidence_insufficient"] and h7["state"] != "Forecast stale" else "")},
+        {"action": "Decide", "n": statuses.get("eligible_for_review", 0), "tone": "warn" if statuses.get("eligible_for_review") else "info",
+         "text": (f"{statuses['eligible_for_review']} verified habitats with larvae are waiting for a supervisor's treatment decision." if statuses.get("eligible_for_review")
+                  else "No verified habitat is waiting for a treatment decision.")},
+        {"action": "Treat", "n": len(waiting), "tone": "warn" if waiting else "info",
+         "text": (f"{len(waiting)} habitats have an authorised treatment not yet carried out ({sum(i['method'] == 'bti_drone' for i in waiting)} by drone, "
+                  f"{sum(i['method'] != 'bti_drone' for i in waiting)} on the ground)." if waiting else
+                  "No habitat is authorised for treatment, so nothing is due to be sprayed. A forecast is not grounds for spraying: "
+                  "treatment follows larvae confirmed by dipping, a suitability assessment and a supervisor's authorisation.")},
+        {"action": "Follow up", "n": statuses.get("follow_up_due", 0), "tone": "warn" if statuses.get("follow_up_due") else "info",
+         "text": (f"{statuses['follow_up_due']} treated habitats have no follow-up inspection scheduled." if statuses.get("follow_up_due") else "No follow-up inspection is overdue.")},
+    ]
+    return {"today": today.isoformat(), "horizons": horizons, "weather": wx, "guidance": guidance, "scope": programme._scope(None)[1],
+            "inputs": (cur or {}).get("inputs"), "issued_utc": (cur or {}).get("issued_utc"), "note": (cur or {}).get("note"), "audit": AUDIT,
+            "caution": "Research forecast. It predicts radar-detected surface water at 50 m sample points, not mosquito breeding."}

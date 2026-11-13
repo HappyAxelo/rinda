@@ -1,0 +1,151 @@
+{
+  "issued_utc": "2026-11-13T02:42:09Z",
+  "horizons": {
+    "7": {
+      "model_trained_to": "2026-09-30",
+      "last_evaluated_issue": "2026-09-30",
+      "first_open_issue": "2026-10-05",
+      "latest_issue": "2026-11-11",
+      "issues_added": 14,
+      "rows_added": 7400,
+      "rows_with_outcome": 6331,
+      "events_with_outcome": 226,
+      "inputs_reproduced_on_overlap": 1.0,
+      "overlap_rows": 145784,
+      "missing_input_share_latest": {
+        "geometry": 0.25,
+        "orbit_memory": 0.611,
+        "site_memory": 0.08,
+        "past_outcomes": 0.0,
+        "season": 0.0,
+        "neighbourhood": 0.0,
+        "rain_response_past": 0.0,
+        "terrain": 0.0,
+        "static_water_landcover": 0.0,
+        "sentinel2": 0.0,
+        "era5land": 0.348,
+        "chirps": 1.0,
+        "nwp_forecast": 1.0,
+        "sar_base": 0.023
+      }
+    },
+    "14": {
+      "model_trained_to": "2026-09-24",
+      "last_evaluated_issue": "2026-09-24",
+      "first_open_issue": "2026-09-29",
+      "latest_issue": "2026-11-11",
+      "issues_added": 16,
+      "rows_added": 8436,
+      "rows_with_outcome": 6335,
+      "events_with_outcome": 169,
+      "inputs_reproduced_on_overlap": 1.0,
+      "overlap_rows": 140490,
+      "missing_input_share_latest": {
+        "geometry": 0.25,
+        "orbit_memory": 0.611,
+        "site_memory": 0.08,
+        "past_outcomes": 0.0,
+        "season": 0.0,
+        "neighbourhood": 0.0,
+        "rain_response_past": 0.0,
+        "terrain": 0.0,
+        "static_water_landcover": 0.0,
+        "sar_base": 0.023
+      }
+    }
+  },
+  "inputs": {
+    "sentinel1_last_pass": "2026-11-11",
+    "sentinel1_recent_passes": null,
+    "sentinel2_last": "2026-11-09",
+    "era5land_last": "2026-11-12",
+    "chirps_last": "2026-11-05",
+    "nwp_last": "2026-11-12"
+  },
+  "weather_outlook": {
+    "source": "ECMWF IFS 0.25 degree via Open-Meteo",
+    "retrieved_utc": "2026-11-13T02:42:29Z",
+    "point": [
+      -1.8731,
+      30.2232
+    ],
+    "days": [
+      {
+        "date": "2026-11-13",
+        "rain_mm": 19.2,
+        "temp_c": 17.5
+      },
+      {
+        "date": "2026-11-14",
+        "rain_mm": 3.9,
+        "temp_c": 17.3
+      },
+      {
+        "date": "2026-11-15",
+        "rain_mm": 6.6,
+        "temp_c": 17.5
+      },
+      {
+        "date": "2026-11-16",
+        "rain_mm": 7.2,
+        "temp_c": 18.2
+      },
+      {
+        "date": "2026-11-17",
+        "rain_mm": 3.9,
+        "temp_c": 18.3
+      },
+      {
+        "date": "2026-11-18",
+        "rain_mm": 2.3,
+        "temp_c": 18.2
+      },
+      {
+        "date": "2026-11-19",
+        "rain_mm": 6.2,
+        "temp_c": 18.0
+      },
+      {
+        "date": "2026-11-20",
+        "rain_mm": 8.8,
+        "temp_c": 18.0
+      },
+      {
+        "date": "2026-11-21",
+        "rain_mm": 1.0,
+        "temp_c": 18.5
+      },
+      {
+        "date": "2026-11-22",
+        "rain_mm": 4.8,
+        "temp_c": 18.0
+      },
+      {
+        "date": "2026-11-23",
+        "rain_mm": 7.8,
+        "temp_c": 17.4
+      },
+      {
+        "date": "2026-11-24",
+        "rain_mm": 8.6,
+        "temp_c": 17.1
+      },
+      {
+        "date": "2026-11-25",
+        "rain_mm": 5.6,
+        "temp_c": 17.8
+      },
+      {
+        "date": "2026-11-26",
+        "rain_mm": 3.0,
+        "temp_c": 18.7
+      },
+      {
+        "date": "2026-11-27",
+        "rain_mm": null,
+        "temp_c": null
+      }
+    ]
+  },
+  "note": "Scored with the stored operational models. No refit and no change to the evaluation. Passes after the evaluated period come from Sentinel-1C and Sentinel-1D, which the orbit harmonisation does not yet correct."
+}

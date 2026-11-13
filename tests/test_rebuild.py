@@ -1,4 +1,4 @@
-﻿"""2026-11 rebuild: surveillance map, dossier, datasets, training, connectors,
+"""2026-11 rebuild: surveillance map, dossier, datasets, training, connectors,
 intervention rules, drone missions, reporting. Exercised through the API."""
 import io
 import json
@@ -113,7 +113,9 @@ def test_geography_comes_from_boundaries(app):
 # ------------------------------------------------------------------ layers
 def test_forecast_layer_labels_freshness_and_replay(app):
     f = app.get("/api/v1/map/forecast?h=7").json()
-    assert f["state"] == "Forecast stale" and f["label"] == "Research-only forecast" and f["model"]["status"] == "Research only"
+    assert f["state"] == ("Forecast stale" if f["age_days"] > 7 else "Research-only forecast")
+    assert f["label"] == "Research-only forecast" and f["model"]["status"] == "Research only"
+    assert app.get("/api/v1/map/forecast?h=7&date=2025-11-26").json()["state"] == "Forecast stale"
     assert f["audit"]["label_reconstruction_complete"] is False
     assert {r["label"] for r in f["rows"]} <= {"Potential surface-water formation signal", "Evidence insufficient", "Lower forecast priority", "Moderate forecast priority"}
     assert "breeding" not in " ".join(r["label"] for r in f["rows"]).lower()
@@ -507,6 +509,24 @@ def test_model_maturity_is_never_overstated(roles):
     assert {m["maturity"] for m in reg["models"]} <= {"Experimental", "Archived", "Rejected", "Test fixture, not a model", "Suitable for controlled operational evaluation"}
     assert next(m for m in reg["models"] if m["id"] == "v3-h7")["maturity"] == "Experimental"
     assert [x["level"] for x in reg["maturity_levels"]] == ["Experimental", "Suitable for controlled operational evaluation", "Validated"]
+
+
+
+def test_outlook_never_recommends_spraying_from_a_forecast(app):
+    o = app.get("/api/v1/outlook").json()
+    assert o["today"] and [h["horizon"] for h in o["horizons"]] == [7, 14]
+    for h in o["horizons"]:
+        assert h["issue_date"] <= o["today"] and h["target_date"] > h["issue_date"]
+        assert h["potential_signal"] + h["evidence_insufficient"] + h["lower"] == h["locations"]
+        assert "breeding" not in h["text"].lower()
+    by = {g["action"]: g for g in o["guidance"]}
+    assert set(by) == {"Inspect", "Decide", "Treat", "Follow up"}
+    treat = by["Treat"]["text"]
+    assert "not grounds for spraying" in treat or "authorised treatment" in treat
+    assert "not mosquito breeding" in o["caution"]
+    site = app.get("/api/v1/forecast?h=7").json()["rows"][0]["site_id"]
+    e = app.get(f"/api/v1/explain?site={site}&date={o['horizons'][0]['issue_date']}&h=7").json()
+    assert e["available"] and (e["label_observed"] is None or e["label_observed"] in (0, 1))
 
 
 __all__ = ["io"]

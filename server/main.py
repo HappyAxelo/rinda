@@ -549,7 +549,7 @@ async def score(h: int = Query(7), file: UploadFile = File(...), u: User = Depen
 @api.get("/score/template", tags=["forecast"])
 def score_template(h: int = 7, u: User = Depends(require("read:forecast"))):
     m = ENGINE.models[h]
-    ex = ENGINE.tables[h].tail(3)[["site_id", "date"] + m.fcols]
+    ex = ENGINE.tables[h].tail(3)[["site_id", "date"] + m.fcols]  # tail() returns a DataFrame for either storage
     return PlainTextResponse(ex.to_csv(index=False), media_type="text/csv", headers={
         "Content-Disposition": f'attachment; filename="rinda_feature_template_h{h}.csv"'})
 

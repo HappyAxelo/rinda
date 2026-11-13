@@ -192,6 +192,45 @@ class V3HorizonModel:
         return self.om.ensemble.contributions(X)
 
 
+class WindowTable:
+    """Model inputs held as a memory-mapped float32 matrix plus a small row index.
+
+    The matrix lives in a .npy file beside the models and is opened with
+    mmap_mode="r", so the operating system pages in only the rows a request
+    reads. A request for one site and date touches one row instead of holding
+    every input row in the server's memory."""
+
+    def __init__(self, index: pd.DataFrame, X: np.ndarray, cols: list[str]):
+        self.index, self.X, self.cols = index, X, list(cols)
+        self._pos = {c: i for i, c in enumerate(self.cols)}
+        self.columns = ["site_id", "date", "y", *self.cols]
+
+    @property
+    def date(self) -> pd.Series:
+        return self.index["date"]
+
+    @property
+    def site_id(self) -> pd.Series:
+        return self.index["site_id"]
+
+    def __len__(self) -> int:
+        return len(self.index)
+
+    def frame(self, rows, cols: list[str] | None = None) -> pd.DataFrame:
+        """A DataFrame for the given row positions (or boolean mask), only the named feature columns."""
+        idx = np.flatnonzero(np.asarray(rows)) if np.asarray(rows).dtype == bool else np.asarray(rows, dtype=int)
+        cols = self.cols if cols is None else [c for c in cols if c in self._pos]
+        sub = self.index.iloc[idx].reset_index(drop=True)
+        vals = np.asarray(self.X[np.ix_(idx, [self._pos[c] for c in cols])]) if len(idx) and cols else np.empty((len(idx), len(cols)), "float32")
+        return pd.concat([sub, pd.DataFrame(vals, columns=cols)], axis=1)
+
+    def tail(self, n: int) -> pd.DataFrame:
+        return self.frame(np.arange(max(0, len(self) - n), len(self)))
+
+    def at_date(self, d, cols: list[str] | None = None) -> pd.DataFrame:
+        return self.frame((self.index["date"] == pd.Timestamp(d)).to_numpy(), cols)
+
+
 class Engine:
     def __init__(self) -> None:
         self.models: dict[int, HorizonModel] = {}
@@ -224,14 +263,20 @@ class Engine:
         """The v3 model inputs, cached as a pickle beside the models. Reading the
         parquet costs about twice its size in transient Arrow memory; the pickle
         loads with none. site_id becomes a category (600 values, no Arrow strings)."""
-        cache = VAR / "models" / f"window_v3_h{h}_{fingerprint}.pkl"
-        if cache.exists():
-            return pd.read_pickle(cache)
-        tbl = pd.read_parquet(V3 / f"window_h{h}.parquet")
-        tbl["date"] = pd.to_datetime(tbl["date"])
-        tbl["site_id"] = tbl["site_id"].astype(str).astype("category")
-        tbl.to_pickle(cache)
-        return tbl
+        src = V3 / f"window_h{h}.parquet"
+        # the inputs grow when new passes are issued, so the cache is keyed on their size as well as the model
+        stem = VAR / "models" / f"window_v3_h{h}_{fingerprint}_{src.stat().st_size}"
+        npy, idx_p, cols_p = stem.with_suffix(".npy"), stem.with_suffix(".idx.pkl"), stem.with_suffix(".cols.json")
+        if not (npy.exists() and idx_p.exists() and cols_p.exists()):
+            tbl = pd.read_parquet(src)
+            tbl["date"] = pd.to_datetime(tbl["date"])
+            tbl["site_id"] = tbl["site_id"].astype(str).astype("category")
+            cols = [c for c in tbl.columns if c not in ("site_id", "date", "y")]
+            np.save(npy, np.ascontiguousarray(tbl[cols].to_numpy(dtype="float32")))
+            tbl[["site_id", "date", "y"]].to_pickle(idx_p)
+            cols_p.write_text(json.dumps(cols))
+            del tbl
+        return WindowTable(pd.read_pickle(idx_p), np.load(npy, mmap_mode="r"), json.loads(cols_p.read_text()))
 
     def _load_v1(self) -> None:
         """Fit (once) on the full table, but keep only the operational window in
@@ -316,8 +361,8 @@ class Engine:
     # ------------------------------------------------------------- queries
     def row(self, h: int, site_id: str, date: str) -> pd.DataFrame:
         tbl = self.tables[h]
-        r = tbl[(tbl.site_id == site_id) & (tbl.date == pd.Timestamp(date))]
-        return r
+        mask = ((tbl.site_id == site_id) & (tbl.date == pd.Timestamp(date))).to_numpy()
+        return tbl.frame(mask) if isinstance(tbl, WindowTable) else tbl[mask]
 
     def explain(self, h: int, site_id: str, date: str, top: int = 12) -> dict:
         m, r = self.models[h], self.row(h, site_id, date)
@@ -340,7 +385,7 @@ class Engine:
             "missing_inputs": [c for c in m.fcols if pd.isna(r[c].iloc[0])],
             "risk_class": str(classify_risk(np.array([p]))[0]),
             "decision": str(conf["decision"]), "threshold": m.threshold,
-            "label_observed": int(r.y.iloc[0]),
+            "label_observed": None if pd.isna(r.y.iloc[0]) else int(r.y.iloc[0]),  # outcome not yet observable for recent issues
             "families": [{"family": k, "contribution": float(v)} for k, v in fam.items()],
             "drivers": [{"feature": f.feature, "family": f.family,
                          "value": _num(f.value),
