@@ -196,7 +196,7 @@ def seed_study_tables() -> None:
                       ("training_table", ver, f"Study table A, {h}-day (archived Paper 1 labels)", rel.name, m["fingerprint"], str(rel), str(rel), m["n_rows"],
                        json.dumps(m["feature_columns"]),
                        json.dumps({"rows": m["n_rows"], "columns": [], "date_min": m["date_min"], "date_max": m["date_max"], "passed": True, "warnings": 1,
-                                   "checks": [_check("provenance", "Study table", "warn", "Frozen study table. Its labels carry the problems found in the 5 November 2026 audit.")]}),
+                                   "checks": [_check("provenance", "Study table", "warn", "Frozen study table. Its labels carry the problems found in the 5 November 2026 audit; corrected tables exist in the study (13 November 2026) but are not loaded here.")]}),
                        "confirmed", "STUDY", "A", h, "study", now(), "study", now()))
 
 

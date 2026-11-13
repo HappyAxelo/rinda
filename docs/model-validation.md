@@ -5,7 +5,12 @@ how it was tested, what the results are, and why it must not yet guide treatment
 
 > **Update 2026-10-16.** The console now serves the v3 model, not the v1 model described below. v3 beats the
 > persistence baseline (PR-AUC 0.786 vs 0.570 at 7 days, 0.663 vs 0.446 at 14 days, rolling out-of-sample,
-> Sep 2025 – Sep 2026). See `docs/changes-2026-10-16.md`. Sections 1–8 document v1 and are kept as the archived
+> Sep 2025 – Sep 2026). See `docs/changes-2026-10-16.md`.
+>
+> **Update 2026-11-13 (E1).** Those v3 numbers rest on labels distorted by Sentinel-1C. With 1C and 1D corrected onto
+> Sentinel-1A and the v3 protocol rerun, PR-AUC is 0.599 vs 0.534 (7 d) and 0.569 vs 0.484 (14 d); 95% of events are at
+> the lake shore and there is no demonstrated skill inland. The served model is still the uncorrected v3.
+> See `habitat-forecast/outputs/v3_e1/README.md`. Sections 1–8 document v1 and are kept as the archived
 > Paper 1 record.
 
 ## 1. Prediction target

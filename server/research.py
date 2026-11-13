@@ -31,7 +31,7 @@ ALIGN = ROOT / "config" / "research_alignment.json"
 
 COLLECTIONS = {
     "sentinel-1-rtc": {"label": "Sentinel-1 RTC (VV/VH)", "kind": "Radar", "resolution_m": 10, "held": "Site-level values for 600 locations, used by the forecast",
-                       "quality": "Orbit-harmonised for tracks 21 and 123. Sentinel-1C is not yet harmonised (5 November 2026 audit).", "source": "Copernicus Sentinel data via Planetary Computer"},
+                       "quality": "Orbit-harmonised for tracks 21 and 123. Sentinel-1C and 1D were corrected onto Sentinel-1A in the study on 13 November 2026; the served model still uses the uncorrected series.", "source": "Copernicus Sentinel data via Planetary Computer"},
     "sentinel-1-grd": {"label": "Sentinel-1 GRD (VV/VH)", "kind": "Radar", "resolution_m": 10, "held": "Scene metadata only. Originals were not downloaded.",
                        "quality": "Not processed in RINDA.", "source": "Copernicus Sentinel data via Planetary Computer"},
     "sentinel-2-l2a": {"label": "Sentinel-2 Level-2A", "kind": "Optical", "resolution_m": 10, "held": "Site-level indices (NDWI, MNDWI, NDVI) for 600 locations",

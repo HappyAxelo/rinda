@@ -32,7 +32,7 @@ import security as S
 import training as T
 from data import STATION, records, store
 from db import now, tx
-from engine import ENGINE, ROOT, V3_CARD
+from engine import ENGINE, ROOT, V3, V3_CARD
 from security import User, current_user, require
 
 router = APIRouter(tags=["surveillance"])
@@ -654,12 +654,21 @@ def seed_registry() -> None:
             ev = V3_CARD["evaluation"][str(h)]["full"]
             entries.append((f"v3-h{h}", "A", h, "v3", "research_only", json.dumps({"model": {"pr_auc": ev["pr_auc"], "precision": ev["precision_threshold"]["precision"], "recall": ev["precision_threshold"]["recall"]},
                             "baselines": {"B1_recent_water_frequency_30d": {"pr_auc": ev["B1_pr_auc"]}}, "window": [ev["date_from"], ev["date_to"]]}), 1,
-                            "Currently displayed. Research only under the 5 November 2026 audit."))
+                            "Currently displayed. Trained on uncorrected labels; research only under the 5 November 2026 audit."))
+    e1 = json.loads((V3 / "e1_evaluation.json").read_text()) if (V3 / "e1_evaluation.json").exists() else None
+    if e1:
+        for h in (7, 14):
+            ev = e1["evaluation"][str(h)]["full"]
+            entries.append((f"v3-e1-h{h}", "A", h, "v3-e1", "candidate", json.dumps({"model": {"pr_auc": ev["pr_auc"], "precision": ev["precision_threshold"]["precision"], "recall": ev["precision_threshold"]["recall"]},
+                            "baselines": {"B1_recent_water_frequency_30d": {"pr_auc": ev["B1_pr_auc"]}}, "window": [ev["date_from"], ev["date_to"]]}), 1,
+                            "Sentinel-1C/1D corrected labels (13 Nov 2026). Evaluated, not served. Lake-shore skill only; none inland."))
     entries += [("v1-h7", "A", 7, "v1", "archived", json.dumps({"model": {"pr_auc": 0.5807}}), 0, "Archived Paper 1 run. Beaten by persistence (0.628)."),
                 ("v1-h14", "A", 14, "v1", "archived", json.dumps({"model": {"pr_auc": 0.310}}), 0, "Archived Paper 1 run. Beaten by persistence (0.629).")]
     with tx() as c:
         for e in entries:
             c.execute("INSERT OR IGNORE INTO model_registry (id, target, horizon, version, status, metrics, audit_warning, notes, created_utc) VALUES (?,?,?,?,?,?,?,?,?)", (*e, now()))
+        c.execute("UPDATE model_registry SET notes=? WHERE version='v3' AND notes=?", ("Currently displayed. Trained on uncorrected labels; research only under the 5 November 2026 audit.",
+                                                                                 "Currently displayed. Research only under the 5 November 2026 audit."))
 
 
 # A model is "validated" only after field validation, which no model has had.

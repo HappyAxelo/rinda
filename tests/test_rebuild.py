@@ -304,8 +304,9 @@ def test_training_api_guards_and_model_gate(roles, monkeypatch):
 
 def test_audit_warning_travels_with_the_product(app):
     b = app.get("/api/v1/bootstrap").json()
-    assert b["audit"]["audit_date"] == "2026-11-05" and len(b["audit"]["findings"]) == 3
+    assert b["audit"]["audit_date"] == "2026-11-05" and len(b["audit"]["findings"]) == 4
     assert "297 of the 598" in " ".join(b["audit"]["findings"])
+    assert "0.599" in b["audit"]["findings"][3] and "Sentinel-1C" in b["audit"]["findings"][1]
     assert app.get("/api/v1/model-audit").json()["applies_to"] == ["v3"]
     assert "5 November 2026" in app.get("/api/v1/dossier/G0442").json()["model_audit"]["title"]
 

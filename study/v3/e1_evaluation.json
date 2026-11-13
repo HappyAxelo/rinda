@@ -1,0 +1,439 @@
+{
+ "_doc": "E1 rerun of the v3 protocol on labels with Sentinel-1C and 1D corrected (habitat-forecast/outputs/v3_e1). Evaluated, not served.",
+ "run_date": "2026-11-13",
+ "source": "habitat-forecast/outputs/v3_e1/README.md",
+ "protocol": "habitat-forecast/outputs/v3_e1/PROTOCOL.md",
+ "served": false,
+ "evaluation": {
+  "7": {
+   "chosen": "R0_static_v2",
+   "full": {
+    "window": "Sep 2025 - Sep 2026",
+    "rows": 66949,
+    "events": 1041,
+    "base_rate": 0.015549149352492195,
+    "date_from": "2025-09-03",
+    "date_to": "2026-09-30",
+    "pr_auc": 0.5994213354836408,
+    "B1_pr_auc": 0.5336435989255129,
+    "ci": {
+     "metric": "pr_auc",
+     "mean": 0.5983320814991762,
+     "sd": 0.043130503902582294,
+     "lo": 0.49559803007171654,
+     "hi": 0.6614051501541237,
+     "n_resamples": 500
+    },
+    "precision_threshold": {
+     "alerts": 454,
+     "hits": 345,
+     "false_alarms": 109,
+     "misses": 696,
+     "precision": 0.7599118942731278,
+     "recall": 0.3314121037463977,
+     "f1": 0.46153846153846156
+    },
+    "f1_threshold": {
+     "alerts": 1177,
+     "hits": 628,
+     "false_alarms": 549,
+     "misses": 413,
+     "precision": 0.5335598980458793,
+     "recall": 0.6032660902977905,
+     "f1": 0.5662759242560865
+    }
+   },
+   "test": {
+    "window": "test (Sep 2025 - Jan 2026)",
+    "rows": 25360,
+    "events": 291,
+    "base_rate": 0.011474763406940064,
+    "date_from": "2025-09-03",
+    "date_to": "2026-01-26",
+    "pr_auc": 0.6010737632509997,
+    "B1_pr_auc": 0.5150815354749168,
+    "ci": {
+     "metric": "pr_auc",
+     "mean": 0.6039001484810202,
+     "sd": 0.03714988901428448,
+     "lo": 0.525145425293166,
+     "hi": 0.6653627435647732,
+     "n_resamples": 500
+    },
+    "precision_threshold": {
+     "alerts": 157,
+     "hits": 111,
+     "false_alarms": 46,
+     "misses": 180,
+     "precision": 0.7070063694267515,
+     "recall": 0.38144329896907214,
+     "f1": 0.4955357142857143
+    },
+    "f1_threshold": {
+     "alerts": 357,
+     "hits": 176,
+     "false_alarms": 181,
+     "misses": 115,
+     "precision": 0.49299719887955185,
+     "recall": 0.6048109965635738,
+     "f1": 0.5432098765432098
+    }
+   },
+   "forward": {
+    "window": "forward (Feb - Sep 2026)",
+    "rows": 41589,
+    "events": 750,
+    "base_rate": 0.018033614657721995,
+    "date_from": "2026-01-31",
+    "date_to": "2026-09-30",
+    "pr_auc": 0.6020047923843014,
+    "B1_pr_auc": 0.5405502610054722,
+    "ci": {
+     "metric": "pr_auc",
+     "mean": 0.5998964496023145,
+     "sd": 0.052741166574178495,
+     "lo": 0.4711947856544023,
+     "hi": 0.6799476165441768,
+     "n_resamples": 500
+    },
+    "precision_threshold": {
+     "alerts": 297,
+     "hits": 234,
+     "false_alarms": 63,
+     "misses": 516,
+     "precision": 0.7878787878787878,
+     "recall": 0.312,
+     "f1": 0.4469914040114613
+    },
+    "f1_threshold": {
+     "alerts": 820,
+     "hits": 452,
+     "false_alarms": 368,
+     "misses": 298,
+     "precision": 0.551219512195122,
+     "recall": 0.6026666666666667,
+     "f1": 0.575796178343949
+    }
+   }
+  },
+  "14": {
+   "chosen": "R0_static_v2",
+   "full": {
+    "window": "Sep 2025 - Sep 2026",
+    "rows": 63727,
+    "events": 990,
+    "base_rate": 0.01553501655499239,
+    "date_from": "2025-09-03",
+    "date_to": "2026-09-24",
+    "pr_auc": 0.5693656137696335,
+    "B1_pr_auc": 0.48415262351313176,
+    "ci": {
+     "metric": "pr_auc",
+     "mean": 0.56581238445441,
+     "sd": 0.047892822782364744,
+     "lo": 0.45559268857757773,
+     "hi": 0.6431501281810332,
+     "n_resamples": 500
+    },
+    "precision_threshold": {
+     "alerts": 429,
+     "hits": 320,
+     "false_alarms": 109,
+     "misses": 670,
+     "precision": 0.745920745920746,
+     "recall": 0.32323232323232326,
+     "f1": 0.4510218463706836
+    },
+    "f1_threshold": {
+     "alerts": 776,
+     "hits": 466,
+     "false_alarms": 310,
+     "misses": 524,
+     "precision": 0.6005154639175257,
+     "recall": 0.4707070707070707,
+     "f1": 0.5277463193657984
+    }
+   },
+   "test": {
+    "window": "test (Sep 2025 - Jan 2026)",
+    "rows": 24292,
+    "events": 288,
+    "base_rate": 0.011855754981063725,
+    "date_from": "2025-09-03",
+    "date_to": "2026-01-26",
+    "pr_auc": 0.5958525459062565,
+    "B1_pr_auc": 0.5282246829617883,
+    "ci": {
+     "metric": "pr_auc",
+     "mean": 0.6002798309206099,
+     "sd": 0.04164533605581345,
+     "lo": 0.502916666809378,
+     "hi": 0.6679253364915985,
+     "n_resamples": 500
+    },
+    "precision_threshold": {
+     "alerts": 135,
+     "hits": 104,
+     "false_alarms": 31,
+     "misses": 184,
+     "precision": 0.7703703703703704,
+     "recall": 0.3611111111111111,
+     "f1": 0.491725768321513
+    },
+    "f1_threshold": {
+     "alerts": 217,
+     "hits": 138,
+     "false_alarms": 79,
+     "misses": 150,
+     "precision": 0.6359447004608295,
+     "recall": 0.4791666666666667,
+     "f1": 0.5465346534653466
+    }
+   },
+   "forward": {
+    "window": "forward (Feb - Sep 2026)",
+    "rows": 39435,
+    "events": 702,
+    "base_rate": 0.017801445416508178,
+    "date_from": "2026-01-31",
+    "date_to": "2026-09-24",
+    "pr_auc": 0.5590692046302732,
+    "B1_pr_auc": 0.4630210009406599,
+    "ci": {
+     "metric": "pr_auc",
+     "mean": 0.5528018930041164,
+     "sd": 0.0581971506501619,
+     "lo": 0.430052029483653,
+     "hi": 0.6464185348814543,
+     "n_resamples": 500
+    },
+    "precision_threshold": {
+     "alerts": 294,
+     "hits": 216,
+     "false_alarms": 78,
+     "misses": 486,
+     "precision": 0.7346938775510204,
+     "recall": 0.3076923076923077,
+     "f1": 0.43373493975903615
+    },
+    "f1_threshold": {
+     "alerts": 559,
+     "hits": 328,
+     "false_alarms": 231,
+     "misses": 374,
+     "precision": 0.5867620751341681,
+     "recall": 0.4672364672364672,
+     "f1": 0.5202220459952419
+    }
+   }
+  }
+ },
+ "by_zone": [
+  {
+   "h": 7,
+   "group": "all sites",
+   "rows": 66949,
+   "events": 1041,
+   "sites_with_events": 96,
+   "base_rate": 0.0155,
+   "v3_pr_auc": 0.5994,
+   "B1_pr_auc": 0.5336,
+   "diff": 0.0658,
+   "diff_lo": 0.0315,
+   "diff_hi": 0.0881
+  },
+  {
+   "h": 7,
+   "group": "lake shore, 100 m or less",
+   "rows": 12556,
+   "events": 994,
+   "sites_with_events": 86,
+   "base_rate": 0.0792,
+   "v3_pr_auc": 0.6218,
+   "B1_pr_auc": 0.5569,
+   "diff": 0.0649,
+   "diff_lo": 0.0387,
+   "diff_hi": 0.0874
+  },
+  {
+   "h": 7,
+   "group": "100 to 500 m from lake",
+   "rows": 744,
+   "events": 0,
+   "sites_with_events": 0,
+   "base_rate": 0.0,
+   "v3_pr_auc": null,
+   "B1_pr_auc": null,
+   "diff": null,
+   "diff_lo": null,
+   "diff_hi": null
+  },
+  {
+   "h": 7,
+   "group": "over 500 m from lake",
+   "rows": 53649,
+   "events": 47,
+   "sites_with_events": 10,
+   "base_rate": 0.0009,
+   "v3_pr_auc": 0.0437,
+   "B1_pr_auc": 0.1719,
+   "diff": -0.1282,
+   "diff_lo": -0.2052,
+   "diff_hi": -0.0517
+  },
+  {
+   "h": 7,
+   "group": "inside sector",
+   "rows": 34639,
+   "events": 601,
+   "sites_with_events": 43,
+   "base_rate": 0.0174,
+   "v3_pr_auc": 0.6304,
+   "B1_pr_auc": 0.543,
+   "diff": 0.0875,
+   "diff_lo": 0.0373,
+   "diff_hi": 0.1115
+  },
+  {
+   "h": 7,
+   "group": "outside sector",
+   "rows": 32310,
+   "events": 440,
+   "sites_with_events": 53,
+   "base_rate": 0.0136,
+   "v3_pr_auc": 0.5592,
+   "B1_pr_auc": 0.5203,
+   "diff": 0.0389,
+   "diff_lo": -0.0042,
+   "diff_hi": 0.0829
+  },
+  {
+   "h": 7,
+   "group": "inside sector, over 500 m from lake",
+   "rows": 29124,
+   "events": 17,
+   "sites_with_events": 4,
+   "base_rate": 0.0006,
+   "v3_pr_auc": 0.025,
+   "B1_pr_auc": 0.2482,
+   "diff": -0.2232,
+   "diff_lo": -0.2488,
+   "diff_hi": -0.2046
+  },
+  {
+   "h": 14,
+   "group": "all sites",
+   "rows": 63727,
+   "events": 990,
+   "sites_with_events": 94,
+   "base_rate": 0.0155,
+   "v3_pr_auc": 0.5694,
+   "B1_pr_auc": 0.4842,
+   "diff": 0.0852,
+   "diff_lo": 0.0508,
+   "diff_hi": 0.1074
+  },
+  {
+   "h": 14,
+   "group": "lake shore, 100 m or less",
+   "rows": 11966,
+   "events": 938,
+   "sites_with_events": 84,
+   "base_rate": 0.0784,
+   "v3_pr_auc": 0.5952,
+   "B1_pr_auc": 0.5213,
+   "diff": 0.0739,
+   "diff_lo": 0.0383,
+   "diff_hi": 0.096
+  },
+  {
+   "h": 14,
+   "group": "100 to 500 m from lake",
+   "rows": 708,
+   "events": 0,
+   "sites_with_events": 0,
+   "base_rate": 0.0,
+   "v3_pr_auc": null,
+   "B1_pr_auc": null,
+   "diff": null,
+   "diff_lo": null,
+   "diff_hi": null
+  },
+  {
+   "h": 14,
+   "group": "over 500 m from lake",
+   "rows": 51053,
+   "events": 52,
+   "sites_with_events": 10,
+   "base_rate": 0.001,
+   "v3_pr_auc": 0.0393,
+   "B1_pr_auc": 0.0272,
+   "diff": 0.0121,
+   "diff_lo": -0.0087,
+   "diff_hi": 0.0387
+  },
+  {
+   "h": 14,
+   "group": "inside sector",
+   "rows": 32970,
+   "events": 583,
+   "sites_with_events": 43,
+   "base_rate": 0.0177,
+   "v3_pr_auc": 0.6031,
+   "B1_pr_auc": 0.5113,
+   "diff": 0.0919,
+   "diff_lo": 0.0496,
+   "diff_hi": 0.1266
+  },
+  {
+   "h": 14,
+   "group": "outside sector",
+   "rows": 30757,
+   "events": 407,
+   "sites_with_events": 51,
+   "base_rate": 0.0132,
+   "v3_pr_auc": 0.5175,
+   "B1_pr_auc": 0.4525,
+   "diff": 0.0649,
+   "diff_lo": 0.0163,
+   "diff_hi": 0.105
+  },
+  {
+   "h": 14,
+   "group": "inside sector, over 500 m from lake",
+   "rows": 27714,
+   "events": 19,
+   "sites_with_events": 4,
+   "base_rate": 0.0007,
+   "v3_pr_auc": 0.0154,
+   "B1_pr_auc": 0.0167,
+   "diff": -0.0013,
+   "diff_lo": -0.0046,
+   "diff_hi": 0.0097
+  }
+ ],
+ "decision": {
+  "decision_b_inside_sector_over_500m_h7": {
+   "labels": "E1 corrected",
+   "h": 7,
+   "group": "inside sector, over 500 m from lake",
+   "rows": 29124,
+   "events": 17,
+   "sites_with_events": 4,
+   "base_rate": 0.0005837110287048483,
+   "v3_pr_auc": 0.025026196170885612,
+   "B1_pr_auc": 0.24821091282172159,
+   "diff": -0.22318471665083597,
+   "diff_lo": -0.2488250475171425,
+   "diff_hi": -0.2045649138951508
+  },
+  "decision_a_track123_overlap_over_500m": {
+   "S1A": "0 of 23,379",
+   "S1C": "4 of 21,649",
+   "as_written": "not met (ratio undefined, S1A rate is zero)",
+   "in_substance": "discrepancy removed"
+  },
+  "decision_b": "fails: lower limit -0.249",
+  "conclusion": "No demonstrated forecast of new water in the marshland; corrected skill is lake-shore skill."
+ }
+}
