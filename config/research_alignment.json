@@ -38,12 +38,13 @@
       "rinda": "Keeps water (target A) and confirmed breeding (target D) as separate models. Accepts RBC survey files as versioned datasets and records dipping results in the field workflow. No habitat model exists yet.",
       "objective": "Objective 1 · RQ5 · H5",
       "evaluation": "PR-AUC for Anopheles larval presence against a habitat-type-only rule, on survey visits held out by site block and season, then on random dipping samples.",
-      "status": "Awaiting data. RBC historical records were requested on 14 October 2026.",
+      "status": "Awaiting data. RBC historical records were requested on 14 October 2026. External field evidence (26 Nov 2026, Ruhuha rice scheme 2015, not Gikomero): on 857 untreated wet visits, habitat size alone ranked Anopheles-positive habitats at ROC-AUC 0.76 (held out by survey point); the state two weeks earlier added little (0.76 with both). Round 1 positivity: rice paddies 70%, drains 93% (14 of 15), dams 26% (5 of 19). 08_Code/larval-evidence.",
       "refs": [
         "kahamba2024",
         "zhou2024",
         "jiang2021",
-        "msugupakulya2024b"
+        "msugupakulya2024b",
+        "hakizimana_koenraadt_data2022"
       ]
     },
     {
@@ -69,9 +70,10 @@
       "rinda": "Evaluates and displays the two horizons separately and warns that 14-day forecasts are weaker.",
       "objective": "Objective 1 · RQ1",
       "evaluation": "Separate PR-AUC, precision and recall per horizon on identical periods.",
-      "status": "Project finding: 14-day alert precision missed its 0.75 target (0.72), and on February to September 2026 the retrained model was no better than the frozen one (0.674 against 0.677).",
+      "status": "Project finding: 14-day alert precision missed its 0.75 target (0.72), and on February to September 2026 the retrained model was no better than the frozen one (0.674 against 0.677). External field evidence (Ruhuha 2015): in untreated rice habitats 42% of Anopheles-positive visits also held pupae, and half of positive runs lasted a single two-week round, so a habitat found at day 14 is often already past or producing adults.",
       "refs": [
-        "msugupakulya2024a"
+        "msugupakulya2024a",
+        "hakizimana_koenraadt_data2022"
       ]
     },
     {
@@ -83,10 +85,11 @@
       "rinda": "Inspection tasks from forecasts, an offline field form that separates 'not sampled' from 'none found', supervisor review, and a dossier that keeps predicted, observed and confirmed evidence apart.",
       "objective": "Objective 1 (Study 2b) and Objective 3 (Study 3 positivity sample)",
       "evaluation": "Share of confirmed water bodies with Anopheles larvae by habitat type, from a random sample chosen independently of the model.",
-      "status": "Built, awaiting field data. RBC entomology team requested, not confirmed.",
+      "status": "Built, awaiting field data. RBC entomology team requested, not confirmed. External field evidence (Ruhuha 2015): 16.5% of planned visits found the habitat dry; in untreated rice, 41% of wet visits held Anopheles larvae. Two weeks later a positive habitat was positive again only 41% of the time, and a dry one became positive 16% of the time. With the median density (1.1 larvae per dip), 1 dip misses larvae about 39% of the time and 10 dips about 5%; low-density habitats need about 18 dips.",
       "refs": [
         "francisco2026",
-        "stanton2021"
+        "stanton2021",
+        "hakizimana_koenraadt_data2022"
       ]
     },
     {
@@ -130,7 +133,7 @@
       "rinda": "Inspection flights from forecasts; treatment missions only from supervisor-authorised habitats; approval, exports without spray commands, flight results. The timing-and-placement controller is studied outside RINDA; RINDA ingests its logs.",
       "objective": "Objective 2 (mission link) and Objective 3 · RQ6 · H6a to H6c (core)",
       "evaluation": "Calibration of predicted treatment probability; share of eligible targets treated with controller C3 against C2; non-inferior off-target fraction.",
-      "status": "Mission workflow built. Controller hypotheses untested.",
+      "status": "Mission workflow built. Controller hypotheses untested. External field evidence (Ruhuha 2015 Bti trial, reanalysed): supervised Bti cut Anopheles habitat occupancy by 48% per round against 22-26% in control; community application 26-28%, not clearly better than control in a model clustered by survey point (p 0.21-0.60). Pupal occupancy of wet habitats in rounds 5-10: 0.16% supervised, 0.43% community, 12.75% control. Indoor An. gambiae did not fall significantly relative to control (supervised ratio 0.49, 95% CI 0.19-1.32).",
       "refs": [
         "munyakanage2024",
         "bokpin2026",
@@ -138,7 +141,8 @@
         "wang2023",
         "lyu2025",
         "cazorla2019",
-        "friebe2024"
+        "friebe2024",
+        "hakizimana_koenraadt_data2022"
       ]
     },
     {
@@ -372,6 +376,10 @@
     "friebe2024": {
       "cite": "Friebe et al. 2024, Real-Time Systems 60(3):443-490",
       "doi": "10.1007/s11241-024-09431-7"
+    },
+    "hakizimana_koenraadt_data2022": {
+      "cite": "Hakizimana E, Koenraadt CJM. Community-based control of malaria vectors using Bti in Rwanda [dataset]. DANS, 2022. CC0",
+      "doi": "10.17026/dans-zta-mad4"
     }
   }
 }
