@@ -1,4 +1,4 @@
-// National surveillance map: one map, six evidence layers, each loaded only when
+// National surveillance map: one map, seven evidence layers, each loaded only when
 // switched on. Predicted, satellite-observed, sensor-observed, field and
 // operational records keep their own symbols and are never merged.
 import { api, makeMap, icon, esc, fmt, css, pill, chart, disposeIn, toast, ramp, empty, opStatus, NODATA } from '../ui.js';
@@ -6,8 +6,8 @@ import { params, setIssue } from '../app.js';
 import { loadSummary } from './dossier.js';
 
 let map, groups = {}, redraws = {}, data = {}, boundsLayer = {}, ST, root;
-const S = { date: null, lastTop: null, cell: '', inSector: false, earthMode: 'wet', compare: '', model: '',
-  on: { forecast: true, earth: false, iot: false, ento: false, meteo: false, ops: false }, opacity: {} };
+const S = { date: null, lastTop: null, cell: '', inSector: false, earthMode: 'wet', compare: '', model: '', gridView: 'max', gridHabitat: false, gridWet: true,
+  on: { grid: true, forecast: false, earth: false, iot: false, ento: false, meteo: false, ops: false }, opacity: {} };
 
 export function destroy() {
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
@@ -15,6 +15,7 @@ export function destroy() {
 }
 
 const LAYERS = [
+  ['grid', 'Daily new-water outlook', 'Predicted · 7 to 14 days ahead · every 20 m · research-only'],
   ['forecast', 'Forecast signal', 'Predicted · research-only'],
   ['earth', 'Earth observation', 'Satellite-observed · Sentinel-1 and Sentinel-2'],
   ['iot', 'IoT environmental nodes', 'Sensor-observed'],
@@ -127,6 +128,7 @@ async function load(k) {
 function chips() {
   const out = [];
   const f = data.forecast;
+  if (S.on.grid && data.grid?.available) out.push(`<span class="pill ${data.grid.state === 'Forecast stale' ? 'Stale' : 'Historical'}">Daily outlook · issued ${fmt.date(data.grid.issue_date)}</span>`);
   if (S.on.forecast && f) out.push(f.available ? `<span class="pill ${f.state === 'Forecast stale' ? 'Stale' : 'Historical'}">${esc(f.state)} · issued ${fmt.date(f.issue_date)} · ${f.horizon}-day</span>` : '<span class="pill Unavailable">Forecast unavailable</span>');
   if (S.on.earth && data.earth) out.push(`<span class="pill Historical">Satellite-observed · passes to ${fmt.date(data.earth.date)}</span>`);
   if (S.on.meteo && data.meteo?.available) out.push(`<span class="pill Historical">Weather record · ${fmt.date(data.meteo.observed_date)}</span>`);
@@ -164,6 +166,60 @@ const TRI = (c) => L.divIcon({ className: 'pin', iconSize: [18, 18], iconAnchor:
 
 // ---------------------------------------------------------------- layers
 const LOAD = {
+  async grid(body) {
+    const g = await api.get('/api/map/grid20');
+    data.grid = g; groups.grid.clearLayers();
+    if (!g.available) { body.innerHTML = `<p class="nodata" style="margin:0">${esc(g.message)}</p>`; return; }
+    const pct = (v) => v == null ? NODATA : `${Math.round(v * 100)}%`;
+    const day = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+    const view = g.days.some((d) => `d${d.ahead}` === S.gridView) ? S.gridView : 'max';
+    const sel = g.days.find((d) => `d${d.ahead}` === view);
+    const feats = g.candidates.features.filter((ft) => (!S.inSector || ft.properties.in_sector)
+      && (!sel || (ft.properties.daily[g.days.indexOf(sel)] ?? 0) >= sel.alert_line));
+    const s7 = (g.skill['7'] || {})['all cells'] || {};
+    body.innerHTML = `
+      <div class="kpi-mini" style="display:flex;gap:12px;align-items:baseline"><b style="font-size:1.6rem">${feats.length}</b><span>place${feats.length === 1 ? '' : 's'} to inspect ${sel ? `on ${day(sel.date)}` : `in the next 7 to 14 days`}</span></div>
+      <div class="hint" style="margin:0">Issued ${day(g.issue_date)} from the radar pass of ${day(g.last_pass)} (${g.data_age_days} day${g.data_age_days === 1 ? '' : 's'} old) · ${g.resolution_m} m cells · ${esc(g.area)}</div>
+      <div role="group" aria-label="Day shown" style="display:flex;flex-wrap:wrap;gap:4px">
+        <button class="btn sm ${view === 'max' ? 'primary' : ''}" data-gv="max" title="Highest chance on any day from 7 to 14 days ahead">All days</button>
+        ${g.days.map((d) => `<button class="btn sm ${view === `d${d.ahead}` ? 'primary' : ''}" data-gv="d${d.ahead}" title="${d.candidate_cells} candidate cells">+${d.ahead} · ${day(d.date)}</button>`).join('')}
+      </div>
+      <div><div class="ramp" style="background:linear-gradient(90deg,${g.ramp.map(([v, c]) => `${c} ${Math.round(v * 100)}%`).join(',')})"></div>
+        <div class="ramp-l"><span>Low chance</span><span>Some</span><span>High chance of new water</span></div></div>
+      <div class="lg">
+        <span><i style="background:transparent;border:2px solid var(--terra)"></i>Place to inspect (candidate, unverified)</span>
+        <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="gWet" ${S.gridWet ? 'checked' : ''}><span><i style="background:#2563eb;opacity:.5"></i>Water seen on the latest pass</span></label>
+        <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="gHab" ${S.gridHabitat ? 'checked' : ''}><span><i style="background:#a6761d;opacity:.6"></i>Low, flat valley floor (habitat-prone)</span></label>
+      </div>
+      ${feats.length ? `<div class="sec" style="margin-top:4px">Places to inspect first</div>
+      <ol class="g20list" style="margin:0;padding-left:20px;display:grid;gap:4px">${feats.slice(0, 8).map((ft) => { const p = ft.properties;
+        return `<li><button class="linkish" data-gc="${esc(p.id)}" style="text-align:left">${pct(p.p_max)} chance, peak ${day(p.peak_date)}</button><br><small>${p.area_m2.toLocaleString()} m² · ${esc(p.zone)}${p.zone === 'inland' && !g.inland_forecast_demonstrated ? ' · check on foot' : ''}</small></li>`; }).join('')}</ol>`
+    : '<p class="nodata" style="margin:0">No place reaches the alert line for this day.</p>'}
+      <details class="tech"><summary>How good is this forecast?</summary><div>
+        <p style="margin:0 0 6px">Tested on September 2025 to November 2026, which the model never saw. At 7 days ahead it ranked new water with PR-AUC ${s7.pr_auc_model ?? NODATA}, against ${s7.pr_auc_B1 ?? NODATA} for the simple rule "it was wet recently" (new water on ${pct(s7.base_rate)} of dry cells).</p>
+        <p style="margin:0">${g.inland_forecast_demonstrated ? 'Skill was also shown more than 500 m from the lake, and Sentinel-2 confirms the radar water signal there.'
+    : g.inland_rule_passed ? 'More than 500 m from the lake the model also predicts the radar signal well, but Sentinel-2 has not confirmed that signal as water there. Treat inland places as leads and check them on foot.'
+      : 'More than 500 m from the lake, forecast skill was not shown, so places there need a check on foot.'}</p>
+        <ul style="margin:6px 0 0;padding-left:18px">${g.rules.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div></details>
+      <span class="hint">${esc(g.caution)}</span>`;
+    body.querySelectorAll('[data-gv]').forEach((b) => b.addEventListener('click', () => { S.gridView = b.dataset.gv; load('grid'); }));
+    body.querySelector('#gHab').addEventListener('change', (x) => { S.gridHabitat = x.target.checked; load('grid'); });
+    body.querySelector('#gWet').addEventListener('change', (x) => { S.gridWet = x.target.checked; load('grid'); });
+    const opt = { pane: 'p-grid', opacity: 1, interactive: false };
+    if (S.gridHabitat) L.imageOverlay('/api/map/grid20/habitat_prone.png', g.bounds, opt).addTo(groups.grid);
+    L.imageOverlay(`/api/map/grid20/${view}.png?d=${g.issue_date}`, g.bounds, opt).addTo(groups.grid);
+    if (S.gridWet) L.imageOverlay('/api/map/grid20/wet_now.png', g.bounds, opt).addTo(groups.grid);
+    const byId = {};
+    L.geoJSON({ type: 'FeatureCollection', features: feats }, {
+      pane: 'p-grid',
+      style: { color: css('--terra'), weight: 2, fillColor: css('--terra'), fillOpacity: 0.12 },
+      onEachFeature: (ft, lyr) => { const p = ft.properties; byId[p.id] = lyr;
+        const spark = p.daily.map((v, n) => `${day(g.days[n].date)}: ${pct(v)}`).join('<br>');
+        lyr.bindTooltip(`<b>Place to inspect</b> · predicted, unverified<br>${pct(p.p_max)} chance of new water, highest on ${day(p.peak_date)}<br>${p.area_m2.toLocaleString()} m² · ${p.dist_permanent_water_m} m from permanent water<br><small>${spark}</small><br>${esc(p.note)}`, { sticky: true }); },
+    }).addTo(groups.grid);
+    body.querySelectorAll('[data-gc]').forEach((b) => b.addEventListener('click', () => { const l = byId[b.dataset.gc]; if (l) { map.fitBounds(l.getBounds(), { maxZoom: 17, padding: [60, 60] }); l.openTooltip(); } }));
+  },
+
   async forecast(body) {
     const f = await api.get(`/api/map/forecast?h=${ST.h}&date=${S.date}${S.cell ? `&cell=${encodeURIComponent(S.cell)}` : ''}${S.model ? `&model=${encodeURIComponent(S.model)}` : ''}`);
     data.forecast = f;

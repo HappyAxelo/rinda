@@ -32,7 +32,8 @@ import security as S
 import training as T
 from data import STATION, records, store
 from db import now, tx
-from engine import ENGINE, ROOT, V3, V3_CARD
+from engine import ENGINE, HF, ROOT, V3, V3_CARD
+from fastapi.responses import FileResponse
 from security import User, current_user, require
 
 router = APIRouter(tags=["surveillance"])
@@ -309,6 +310,35 @@ def _model_forecast(model: str, date: str | None, cell: str | None, u: User) -> 
     return {"available": True, "issue_date": d, "horizon": m["horizon"], "state": "Research-only forecast", "label": "Research-only forecast",
             "target_date": (Date.fromisoformat(d) + timedelta(days=int(m["horizon"]))).isoformat(), "model": {"version": m["id"], "status": m["status"]}, "rows": rows, "n": len(rows), "issues": issues,
             "audit": AUDIT, "limitations": ["Out-of-sample predictions from a candidate run. Not served and not approved."]}
+
+
+G20 = HF / "g20"
+G20_IMAGES = {"max", "habitat_prone", "wet_now", *(f"d{k}" for k in range(7, 15))}
+
+
+@router.get("/map/grid20")
+def map_grid20(u: User = Depends(require("read:forecast"))):
+    """Daily 20 m outlook: chance of new water on each day 7 to 14 days ahead, and candidate places to inspect.
+    Built by habitat-forecast/scripts/g20_daily.py (protocol: habitat-forecast/outputs/g20/PROTOCOL.md)."""
+    meta_p = G20 / "meta.json"
+    empty = {"type": "FeatureCollection", "features": []}
+    if not meta_p.exists():
+        return {"available": False, "message": "The daily 20 m outlook has not been produced for this installation yet.", "candidates": empty}
+    meta = json.loads(meta_p.read_text(encoding="utf-8"))
+    cand = json.loads((G20 / "candidates.geojson").read_text(encoding="utf-8")) if (G20 / "candidates.geojson").exists() else empty
+    age = (Date.today() - Date.fromisoformat(meta["issue_date"])).days
+    meta["n_candidates"] = meta.pop("candidates", len(cand["features"]))
+    return {**meta, "age_days": age, "state": "Forecast stale" if age > 1 or not meta.get("available") else "Research-only forecast",
+            "label": "Research-only forecast", "kind": "Predicted", "candidates": cand,
+            "caution": "A candidate is a place to inspect. It is not observed water and not a confirmed breeding site; treatment needs a larval sample and authorisation."}
+
+
+@router.get("/map/grid20/{name}.png")
+def map_grid20_image(name: str, u: User = Depends(require("read:forecast"))):
+    p = G20 / f"{name}.png"
+    if name not in G20_IMAGES or not p.exists():
+        raise HTTPException(404, "No such outlook image.")
+    return FileResponse(p, media_type="image/png", headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/map/earth")

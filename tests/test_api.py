@@ -150,3 +150,20 @@ def test_latest_issue_explains_and_serialises(app):
     assert s.status_code == 200 and s.json()["available"]
     e = app.get(f"/api/v1/explain?site={site}&date={date}&h=7")
     assert e.status_code == 200 and e.json()["available"] and e.json()["drivers"]
+
+
+def test_grid20_outlook_is_labelled_candidate_not_breeding_site(app):
+    g = app.get("/api/v1/map/grid20").json()
+    if not g["available"]:
+        assert g["candidates"]["features"] == [] and g["message"]
+        return
+    assert g["resolution_m"] == 20 and g["kind"] == "Predicted" and g["label"] == "Research-only forecast"
+    assert [d["ahead"] for d in g["days"]] == list(range(7, 15))
+    assert "not a confirmed breeding site" in g["caution"]
+    for ft in g["candidates"]["features"]:
+        assert ft["properties"]["status"] == "Candidate: unverified"
+    assert isinstance(g["inland_forecast_demonstrated"], bool)
+    r = app.get("/api/v1/map/grid20/d7.png")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/png"
+    assert app.get("/api/v1/map/grid20/meta.png").status_code == 404
+    assert app.get("/api/v1/map/grid20/..%2Fv3%2Fmodel_card.png").status_code == 404

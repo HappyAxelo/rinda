@@ -29,6 +29,8 @@ import pandas as pd
 
 VV_MAX, VH_MAX = -17.0, -23.0
 ORBITS = (21, 123)
+REPEAT_DAYS = 12                 # Sentinel-1 repeat cycle per satellite and track
+FORCE_SCHEDULE_FROM = None       # evaluation hook: from this date, use the projected target pass even if a real one exists
 
 
 def load_series(path, buffer_m: int = 50) -> pd.DataFrame:
@@ -107,6 +109,7 @@ def _target_acquisition(s: pd.DataFrame, table: pd.DataFrame, h: int, tol: int =
     """Orbit and date of the acquisition the label is read from (schedule only)."""
     out_orbit = np.full(len(table), np.nan)
     out_gap = np.full(len(table), np.nan)
+    out_sched = np.zeros(len(table))
     by_site = {sid: g for sid, g in s.groupby("site_id", sort=False)}
     for sid, idx in table.groupby("site_id").indices.items():
         g = by_site[sid]
@@ -117,7 +120,33 @@ def _target_acquisition(s: pd.DataFrame, table: pd.DataFrame, h: int, tol: int =
         ok = diff[np.arange(len(idx)), j] <= tol
         out_orbit[idx] = np.where(ok, orb[j], np.nan)
         out_gap[idx] = np.where(ok, (dates[j] - table["date"].to_numpy()[idx]) / np.timedelta64(1, "D"), np.nan)
-    return pd.DataFrame({"ORBIT_TARGET": out_orbit, "TARGET_GAP_DAYS": out_gap}, index=table.index)
+        # Live issues: the target pass has not been acquired yet, so the lookup above finds nothing. Sentinel-1
+        # repeats each track every 12 days per satellite, so project the site's passes of the last 48 days
+        # forward by whole cycles. Uses only acquisitions made by the issue date. Applied only when the target
+        # window lies beyond the site's newest acquisition; rows with a real target pass are unchanged.
+        t0 = table["date"].to_numpy()[idx]
+        fut = ~ok & (tgt - np.timedelta64(tol, "D") > dates.max())
+        if FORCE_SCHEDULE_FROM is not None:      # evaluation only: score as a live issue would have been
+            fut = t0 >= np.datetime64(FORCE_SCHEDULE_FROM)
+            out_orbit[idx[fut]] = np.nan
+            out_gap[idx[fut]] = np.nan
+        for r in np.flatnonzero(fut):
+            recent = (dates <= t0[r]) & (dates > t0[r] - np.timedelta64(48, "D"))
+            if not recent.any():
+                continue
+            cand = (dates[recent][:, None] + np.arange(1, 9)[None, :] * np.timedelta64(REPEAT_DAYS, "D")).ravel()
+            corb = np.repeat(orb[recent], 8)
+            cand_ok = cand > t0[r]
+            if not cand_ok.any():
+                continue
+            cand, corb = cand[cand_ok], corb[cand_ok]
+            d = np.abs((cand - tgt[r]) / np.timedelta64(1, "D"))
+            k = d.argmin()
+            if d[k] <= tol:
+                out_orbit[idx[r]] = corb[k]
+                out_gap[idx[r]] = (cand[k] - t0[r]) / np.timedelta64(1, "D")
+                out_sched[idx[r]] = 1.0
+    return pd.DataFrame({"ORBIT_TARGET": out_orbit, "TARGET_GAP_DAYS": out_gap, "TARGET_FROM_SCHEDULE": out_sched}, index=table.index)
 
 
 def _past_label_rate(table: pd.DataFrame, h: int, tol: int = 2) -> pd.DataFrame:

@@ -1,0 +1,60 @@
+{
+  "from": "2026-10-01",
+  "note": "Live issues are made before the target pass is acquired. Until 26 Nov 2026 the inputs that describe that pass\n(its track, gap and the target-track memory TO_*) were looked up from passes that already existed, so in a live\nissue they were empty. history._target_acquisition now projects the target pass from the 12-day repeat cycle.",
+  "7": {
+    "rows": 8443,
+    "events": 309,
+    "issues": [
+      "2026-10-05",
+      "2026-11-17"
+    ],
+    "B1": 0.535,
+    "real": {
+      "pr_auc": 0.801,
+      "alerts": 331,
+      "alert_precision": 0.707,
+      "alert_recall": 0.757
+    },
+    "schedule": {
+      "pr_auc": 0.801,
+      "alerts": 331,
+      "alert_precision": 0.707,
+      "alert_recall": 0.757
+    },
+    "blank": {
+      "pr_auc": 0.744,
+      "alerts": 0,
+      "alert_precision": null,
+      "alert_recall": 0.0
+    },
+    "schedule_track_matches_real": 1.0
+  },
+  "14": {
+    "rows": 7400,
+    "events": 194,
+    "issues": [
+      "2026-10-05",
+      "2026-11-11"
+    ],
+    "B1": 0.371,
+    "real": {
+      "pr_auc": 0.709,
+      "alerts": 186,
+      "alert_precision": 0.667,
+      "alert_recall": 0.639
+    },
+    "schedule": {
+      "pr_auc": 0.709,
+      "alerts": 186,
+      "alert_precision": 0.667,
+      "alert_recall": 0.639
+    },
+    "blank": {
+      "pr_auc": 0.595,
+      "alerts": 0,
+      "alert_precision": null,
+      "alert_recall": 0.0
+    },
+    "schedule_track_matches_real": 1.0
+  }
+}

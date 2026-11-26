@@ -8,6 +8,14 @@ export function destroy() { map?.remove(); map = null; }
 const F = { start: '', end: '', province: '', district: '', sector: '', cell: '', source: '', evidence: '' };
 const PROVINCES = ['Kigali City', 'Eastern', 'Northern', 'Southern', 'Western'];
 
+// One line for the folded site forecast: when it was issued, whether it is current, and what it found.
+function siteSummary(ol) {
+  const h = ol?.horizons?.[0];
+  if (!h) return 'Site forecast at the monitoring points';
+  const state = h.state === 'Forecast stale' ? `stale, ${h.age_days} days old` : 'current';
+  return `Site forecast at ${h.locations} monitoring points · issued ${esc(fmt.date(h.issue_date))} (${state}) · ${h.potential_signal} with a 7-day new-water signal`;
+}
+
 export async function render(el, st) {
   const areas = await api.get('/api/geo/areas');
   const cells = areas.filter((a) => a.level === 'cell');
@@ -36,10 +44,10 @@ export async function render(el, st) {
 
   async function load() {
     const body = document.getElementById('ovBody');
-    const [o, ol] = await Promise.all([api.get(`/api/overview?${qs()}`), api.get('/api/outlook')]);
+    const [o, ol, g20] = await Promise.all([api.get(`/api/overview?${qs()}`), api.get('/api/outlook'), api.get('/api/map/grid20').catch(() => null)]);
     const c = o.counts, cov = o.coverage;
     const where = cov.onboarded ? '' : `<div class="note warn" style="margin-bottom:18px">${icon('info')} <b>${esc(cov.area)} is not onboarded.</b> ${esc(cov.note)}</div>`;
-    body.innerHTML = `${where}${outlookHTML(ol)}
+    body.innerHTML = `${where}${dailyHTML(g20)}${g20?.available ? `<details style="margin:-6px 0 18px"><summary class="hint" style="cursor:pointer">${siteSummary(ol)}</summary>${outlookHTML(ol)}</details>` : outlookHTML(ol)}
     <div class="stats">
       ${stat('Geographic coverage', cov.onboarded ? `${cov.operational_sectors} sector` : null, cov.onboarded ? 'Gikomero, Gasabo District. Pilot only.' : '', 'map')}
       ${stat('Registered monitoring locations', c.registered_locations, cov.onboarded && !F.cell ? `${cov.sites_in_sector} inside the sector, ${cov.sites_outside_sector} around it` : '', 'pin')}
@@ -86,6 +94,24 @@ export async function render(el, st) {
   }
 
   await load();
+}
+
+// ------------------------------------------------------------------ daily 20 m outlook
+function dailyHTML(g) {
+  if (!g) return '';
+  const day = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+  if (!g.available) return `<section class="card" style="margin-bottom:18px;padding:16px 18px"><b>Daily new-water outlook</b><p class="nodata" style="margin:6px 0 0">${esc(g.message)}</p></section>`;
+  const f = g.candidates.features.map((x) => x.properties);
+  const inland = f.filter((p) => p.zone === 'inland').length;
+  return `<section class="card" style="margin-bottom:18px;padding:16px 18px;display:grid;gap:8px">
+    <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline">
+      <b>Daily new-water outlook · ${day(g.days[0].date)} to ${day(g.days[g.days.length - 1].date)}</b>
+      ${pill(g.state === 'Forecast stale' ? 'Stale' : 'Current').replace(/>[^<]+</, `>Issued ${esc(day(g.issue_date))}<`)}</div>
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:baseline"><span style="font-family:var(--serif);font-size:30px;font-weight:600">${f.length}</span>
+      <span>place${f.length === 1 ? '' : 's'} where new water may form in the next 7 to 14 days${inland ? `, ${inland} of them inland (check on foot)` : ''}.</span></div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap">${g.days.map((d) => `<span class="pill Historical" title="${d.candidate_cells} candidate 20 m cells">${esc(day(d.date))}: ${d.candidate_cells} cells</span>`).join('')}</div>
+    <p class="hint" style="margin:0">Predicted from the radar pass of ${esc(day(g.last_pass))}. Places to inspect, not confirmed breeding sites. <a href="#/map">Open the map ${icon('arrow')}</a></p>
+  </section>`;
 }
 
 // ------------------------------------------------------------------ outlook

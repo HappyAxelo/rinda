@@ -676,3 +676,7 @@ dialog.modal { border-radius: var(--r); }
 .outlook .ol-g .n { font-family: var(--serif); font-size: 18px; font-weight: 600; text-align: right; }
 .outlook .ol-g.warn .n { color: var(--warn); }
 @media (max-width: 1000px) { .outlook .ol-grid { grid-template-columns: 1fr; } .outlook .ol-h { border-left: 0; padding: 12px 0; border-top: 1px solid var(--line); } .outlook .ol-h:first-child { border-top: 0; } .outlook .ol-g { grid-template-columns: 78px 34px 1fr; } }
+/* daily 20 m outlook panel */
+.linkish { background: none; border: 0; padding: 0; color: var(--brand); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.linkish:hover { color: var(--brand-ink); }
+.g20list small { color: var(--ink-3); }

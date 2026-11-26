@@ -1,0 +1,554 @@
+{
+ "issue_date": "2026-11-26",
+ "last_pass": "2026-11-23",
+ "data_age_days": 3,
+ "resolution_m": 20,
+ "area": "Gikomero Sector plus 1 km buffer",
+ "cells": 164180,
+ "bounds": [
+  [
+   -1.9354832778205004,
+   30.17086915492186
+  ],
+  [
+   -1.832859483562784,
+   30.274449173621644
+  ]
+ ],
+ "floor": 0.02,
+ "ramp": [
+  [
+   0.02,
+   "#deebf7"
+  ],
+  [
+   0.1,
+   "#9ecae1"
+  ],
+  [
+   0.25,
+   "#4292c6"
+  ],
+  [
+   0.5,
+   "#2171b5"
+  ],
+  [
+   1.0,
+   "#08306b"
+  ]
+ ],
+ "protocol": "habitat-forecast/outputs/g20/PROTOCOL.md",
+ "inland_rule_passed": true,
+ "inland_forecast_demonstrated": false,
+ "label_check": {
+  "pairs": 46,
+  "note": "S2 water fraction >= 0.5 of the 20 m cell; permanent water excluded",
+  "zones": {
+   "within 100 m | valley floor": {
+    "s1_wet_cells": 6188,
+    "share_s2_water_when_s1_wet": 0.186,
+    "share_s2_water_when_s1_dry": 0.0518
+   },
+   "within 100 m | above valley floor": {
+    "s1_wet_cells": 25005,
+    "share_s2_water_when_s1_wet": 0.0,
+    "share_s2_water_when_s1_dry": 0.0
+   },
+   "100-500 m | valley floor": {
+    "s1_wet_cells": 2265,
+    "share_s2_water_when_s1_wet": 0.0,
+    "share_s2_water_when_s1_dry": 0.0
+   },
+   "100-500 m | above valley floor": {
+    "s1_wet_cells": 20360,
+    "share_s2_water_when_s1_wet": 0.0,
+    "share_s2_water_when_s1_dry": 0.0001
+   },
+   "over 500 m | valley floor": {
+    "s1_wet_cells": 4052,
+    "share_s2_water_when_s1_wet": 0.0,
+    "share_s2_water_when_s1_dry": 0.0
+   },
+   "over 500 m | above valley floor": {
+    "s1_wet_cells": 25806,
+    "share_s2_water_when_s1_wet": 0.0,
+    "share_s2_water_when_s1_dry": 0.0
+   }
+  }
+ },
+ "skill_by_lead": {
+  "7": {
+   "all cells": {
+    "events": 218849,
+    "base_rate": 0.00843,
+    "pr_auc_model": 0.5576,
+    "pr_auc_B1": 0.5092
+   },
+   "over 500 m": {
+    "events": 78941,
+    "base_rate": 0.00436,
+    "pr_auc_model": 0.3241,
+    "pr_auc_B1": 0.2638
+   }
+  },
+  "8": {
+   "all cells": {
+    "events": 224374,
+    "base_rate": 0.00869,
+    "pr_auc_model": 0.5624,
+    "pr_auc_B1": 0.5237
+   },
+   "over 500 m": {
+    "events": 80801,
+    "base_rate": 0.00449,
+    "pr_auc_model": 0.3261,
+    "pr_auc_B1": 0.2786
+   }
+  },
+  "9": {
+   "all cells": {
+    "events": 193689,
+    "base_rate": 0.00799,
+    "pr_auc_model": 0.5681,
+    "pr_auc_B1": 0.5305
+   },
+   "over 500 m": {
+    "events": 66015,
+    "base_rate": 0.00391,
+    "pr_auc_model": 0.307,
+    "pr_auc_B1": 0.2651
+   }
+  },
+  "10": {
+   "all cells": {
+    "events": 168926,
+    "base_rate": 0.00701,
+    "pr_auc_model": 0.563,
+    "pr_auc_B1": 0.5283
+   },
+   "over 500 m": {
+    "events": 53548,
+    "base_rate": 0.00319,
+    "pr_auc_model": 0.2852,
+    "pr_auc_B1": 0.2504
+   }
+  },
+  "11": {
+   "all cells": {
+    "events": 166045,
+    "base_rate": 0.00655,
+    "pr_auc_model": 0.5446,
+    "pr_auc_B1": 0.5194
+   },
+   "over 500 m": {
+    "events": 50153,
+    "base_rate": 0.00284,
+    "pr_auc_model": 0.2716,
+    "pr_auc_B1": 0.2398
+   }
+  },
+  "12": {
+   "all cells": {
+    "events": 165933,
+    "base_rate": 0.00624,
+    "pr_auc_model": 0.4869,
+    "pr_auc_B1": 0.4346
+   },
+   "over 500 m": {
+    "events": 56076,
+    "base_rate": 0.00302,
+    "pr_auc_model": 0.2484,
+    "pr_auc_B1": 0.1788
+   }
+  },
+  "13": {
+   "all cells": {
+    "events": 196640,
+    "base_rate": 0.00739,
+    "pr_auc_model": 0.5272,
+    "pr_auc_B1": 0.4608
+   },
+   "over 500 m": {
+    "events": 70912,
+    "base_rate": 0.00382,
+    "pr_auc_model": 0.297,
+    "pr_auc_B1": 0.216
+   }
+  },
+  "14": {
+   "all cells": {
+    "events": 205345,
+    "base_rate": 0.00815,
+    "pr_auc_model": 0.5477,
+    "pr_auc_B1": 0.4939
+   },
+   "over 500 m": {
+    "events": 71664,
+    "base_rate": 0.00408,
+    "pr_auc_model": 0.3027,
+    "pr_auc_B1": 0.2371
+   }
+  },
+  "15": {
+   "all cells": {
+    "events": 198483,
+    "base_rate": 0.0084,
+    "pr_auc_model": 0.5646,
+    "pr_auc_B1": 0.508
+   },
+   "over 500 m": {
+    "events": 68530,
+    "base_rate": 0.00416,
+    "pr_auc_model": 0.312,
+    "pr_auc_B1": 0.2441
+   }
+  },
+  "16": {
+   "all cells": {
+    "events": 188231,
+    "base_rate": 0.00802,
+    "pr_auc_model": 0.5588,
+    "pr_auc_B1": 0.5033
+   },
+   "over 500 m": {
+    "events": 63573,
+    "base_rate": 0.00389,
+    "pr_auc_model": 0.3008,
+    "pr_auc_B1": 0.2365
+   }
+  },
+  "17": {
+   "all cells": {
+    "events": 179897,
+    "base_rate": 0.00762,
+    "pr_auc_model": 0.5504,
+    "pr_auc_B1": 0.5107
+   },
+   "over 500 m": {
+    "events": 58291,
+    "base_rate": 0.00354,
+    "pr_auc_model": 0.2892,
+    "pr_auc_B1": 0.2384
+   }
+  },
+  "18": {
+   "all cells": {
+    "events": 187860,
+    "base_rate": 0.00746,
+    "pr_auc_model": 0.517,
+    "pr_auc_B1": 0.4622
+   },
+   "over 500 m": {
+    "events": 63727,
+    "base_rate": 0.00363,
+    "pr_auc_model": 0.273,
+    "pr_auc_B1": 0.1995
+   }
+  },
+  "19": {
+   "all cells": {
+    "events": 210425,
+    "base_rate": 0.00835,
+    "pr_auc_model": 0.5515,
+    "pr_auc_B1": 0.4932
+   },
+   "over 500 m": {
+    "events": 75576,
+    "base_rate": 0.0043,
+    "pr_auc_model": 0.3162,
+    "pr_auc_B1": 0.2461
+   }
+  },
+  "20": {
+   "all cells": {
+    "events": 220677,
+    "base_rate": 0.00881,
+    "pr_auc_model": 0.5538,
+    "pr_auc_B1": 0.5091
+   },
+   "over 500 m": {
+    "events": 79407,
+    "base_rate": 0.00455,
+    "pr_auc_model": 0.3131,
+    "pr_auc_B1": 0.2597
+   }
+  }
+ },
+ "skill": {
+  "7": {
+   "all cells": {
+    "events": 218849,
+    "base_rate": 0.00843,
+    "pr_auc_model": 0.5576,
+    "pr_auc_B1": 0.5092,
+    "alert_precision": 0.502,
+    "alert_recall": 0.542,
+    "diff_ci95": [
+     0.0434,
+     0.053
+    ]
+   },
+   "within 100 m of permanent water": {
+    "events": 89656,
+    "base_rate": 0.09507,
+    "pr_auc_model": 0.7878,
+    "pr_auc_B1": 0.7612,
+    "alert_precision": 0.579,
+    "alert_recall": 0.827,
+    "diff_ci95": [
+     0.0212,
+     0.032
+    ]
+   },
+   "100 to 500 m": {
+    "events": 50252,
+    "base_rate": 0.00726,
+    "pr_auc_model": 0.3694,
+    "pr_auc_B1": 0.3181,
+    "alert_precision": 0.403,
+    "alert_recall": 0.419
+   },
+   "over 500 m": {
+    "events": 78941,
+    "base_rate": 0.00436,
+    "pr_auc_model": 0.3241,
+    "pr_auc_B1": 0.2638,
+    "alert_precision": 0.419,
+    "alert_recall": 0.296,
+    "diff_ci95": [
+     0.0533,
+     0.067
+    ]
+   },
+   "inside sector": {
+    "events": 97774,
+    "base_rate": 0.00693,
+    "pr_auc_model": 0.5156,
+    "pr_auc_B1": 0.4694,
+    "alert_precision": 0.476,
+    "alert_recall": 0.516
+   },
+   "1 km buffer": {
+    "events": 121075,
+    "base_rate": 0.01021,
+    "pr_auc_model": 0.5895,
+    "pr_auc_B1": 0.5395,
+    "alert_precision": 0.523,
+    "alert_recall": 0.563
+   },
+   "valley floor (HAND <= 5 m)": {
+    "events": 58385,
+    "base_rate": 0.03917,
+    "pr_auc_model": 0.8094,
+    "pr_auc_B1": 0.7753,
+    "alert_precision": 0.664,
+    "alert_recall": 0.766
+   },
+   "above valley floor": {
+    "events": 160464,
+    "base_rate": 0.00655,
+    "pr_auc_model": 0.4295,
+    "pr_auc_B1": 0.3797,
+    "alert_precision": 0.437,
+    "alert_recall": 0.46
+   },
+   "inside sector, over 500 m": {
+    "events": 35146,
+    "base_rate": 0.00354,
+    "pr_auc_model": 0.3123,
+    "pr_auc_B1": 0.2558,
+    "alert_precision": 0.419,
+    "alert_recall": 0.262,
+    "diff_ci95": [
+     0.0416,
+     0.0689
+    ]
+   }
+  },
+  "14": {
+   "all cells": {
+    "events": 205345,
+    "base_rate": 0.00815,
+    "pr_auc_model": 0.5477,
+    "pr_auc_B1": 0.4939,
+    "alert_precision": 0.493,
+    "alert_recall": 0.548,
+    "diff_ci95": [
+     0.0496,
+     0.0581
+    ]
+   },
+   "within 100 m of permanent water": {
+    "events": 86795,
+    "base_rate": 0.09471,
+    "pr_auc_model": 0.7728,
+    "pr_auc_B1": 0.7498,
+    "alert_precision": 0.572,
+    "alert_recall": 0.825,
+    "diff_ci95": [
+     0.0183,
+     0.0271
+    ]
+   },
+   "100 to 500 m": {
+    "events": 46886,
+    "base_rate": 0.00698,
+    "pr_auc_model": 0.3602,
+    "pr_auc_B1": 0.297,
+    "alert_precision": 0.397,
+    "alert_recall": 0.422
+   },
+   "over 500 m": {
+    "events": 71664,
+    "base_rate": 0.00408,
+    "pr_auc_model": 0.3027,
+    "pr_auc_B1": 0.2371,
+    "alert_precision": 0.398,
+    "alert_recall": 0.294,
+    "diff_ci95": [
+     0.0612,
+     0.0694
+    ]
+   },
+   "inside sector": {
+    "events": 92006,
+    "base_rate": 0.00672,
+    "pr_auc_model": 0.5085,
+    "pr_auc_B1": 0.4559,
+    "alert_precision": 0.473,
+    "alert_recall": 0.525
+   },
+   "1 km buffer": {
+    "events": 113339,
+    "base_rate": 0.00985,
+    "pr_auc_model": 0.577,
+    "pr_auc_B1": 0.5229,
+    "alert_precision": 0.51,
+    "alert_recall": 0.566
+   },
+   "valley floor (HAND <= 5 m)": {
+    "events": 56529,
+    "base_rate": 0.03907,
+    "pr_auc_model": 0.8011,
+    "pr_auc_B1": 0.7675,
+    "alert_precision": 0.659,
+    "alert_recall": 0.767
+   },
+   "above valley floor": {
+    "events": 148816,
+    "base_rate": 0.00627,
+    "pr_auc_model": 0.4128,
+    "pr_auc_B1": 0.3571,
+    "alert_precision": 0.426,
+    "alert_recall": 0.464
+   },
+   "inside sector, over 500 m": {
+    "events": 31916,
+    "base_rate": 0.00331,
+    "pr_auc_model": 0.287,
+    "pr_auc_B1": 0.222,
+    "alert_precision": 0.395,
+    "alert_recall": 0.258,
+    "diff_ci95": [
+     0.0549,
+     0.0697
+    ]
+   }
+  }
+ },
+ "rules": [
+  "A candidate is a place where new water is forecast at or above that day's alert line, on low valley-floor ground (HAND 5 m or less, slope 5 degrees or less), outside permanent water.",
+  "A candidate is not a breeding site. It needs a field check and a larval sample before any treatment.",
+  "Habitat-prone ground is terrain context only: low, flat valley floor that held water at least once in 2022-2024.",
+  "Each alert line is the lowest probability that was right at least half the time in January-August 2025."
+ ],
+ "available": true,
+ "days": [
+  {
+   "ahead": 7,
+   "date": "2026-12-03",
+   "lead_from_pass": 10,
+   "alert_line": 0.208,
+   "image": "d7.png",
+   "candidate_cells": 78,
+   "skill_pr_auc": 0.563,
+   "skill_pr_auc_B1": 0.5283
+  },
+  {
+   "ahead": 8,
+   "date": "2026-12-04",
+   "lead_from_pass": 11,
+   "alert_line": 0.209,
+   "image": "d8.png",
+   "candidate_cells": 72,
+   "skill_pr_auc": 0.5446,
+   "skill_pr_auc_B1": 0.5194
+  },
+  {
+   "ahead": 9,
+   "date": "2026-12-05",
+   "lead_from_pass": 12,
+   "alert_line": 0.249,
+   "image": "d9.png",
+   "candidate_cells": 67,
+   "skill_pr_auc": 0.4869,
+   "skill_pr_auc_B1": 0.4346
+  },
+  {
+   "ahead": 10,
+   "date": "2026-12-06",
+   "lead_from_pass": 13,
+   "alert_line": 0.233,
+   "image": "d10.png",
+   "candidate_cells": 71,
+   "skill_pr_auc": 0.5272,
+   "skill_pr_auc_B1": 0.4608
+  },
+  {
+   "ahead": 11,
+   "date": "2026-12-07",
+   "lead_from_pass": 14,
+   "alert_line": 0.228,
+   "image": "d11.png",
+   "candidate_cells": 80,
+   "skill_pr_auc": 0.5477,
+   "skill_pr_auc_B1": 0.4939
+  },
+  {
+   "ahead": 12,
+   "date": "2026-12-08",
+   "lead_from_pass": 15,
+   "alert_line": 0.205,
+   "image": "d12.png",
+   "candidate_cells": 79,
+   "skill_pr_auc": 0.5646,
+   "skill_pr_auc_B1": 0.508
+  },
+  {
+   "ahead": 13,
+   "date": "2026-12-09",
+   "lead_from_pass": 16,
+   "alert_line": 0.202,
+   "image": "d13.png",
+   "candidate_cells": 80,
+   "skill_pr_auc": 0.5588,
+   "skill_pr_auc_B1": 0.5033
+  },
+  {
+   "ahead": 14,
+   "date": "2026-12-10",
+   "lead_from_pass": 17,
+   "alert_line": 0.203,
+   "image": "d14.png",
+   "candidate_cells": 77,
+   "skill_pr_auc": 0.5504,
+   "skill_pr_auc_B1": 0.5107
+  }
+ ],
+ "candidates": 48,
+ "candidate_cells": 80,
+ "habitat_prone_cells": 327,
+ "wet_now_cells": 6236,
+ "model_frozen": "g20_models.pkl (trained to 2024, calibrated Jan-Aug 2025)"
+}

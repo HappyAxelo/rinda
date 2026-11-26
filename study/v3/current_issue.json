@@ -1,21 +1,21 @@
 {
-  "issued_utc": "2026-11-13T02:42:09Z",
+  "issued_utc": "2026-11-26T10:11:54Z",
   "horizons": {
     "7": {
       "model_trained_to": "2026-09-30",
       "last_evaluated_issue": "2026-09-30",
       "first_open_issue": "2026-10-05",
-      "latest_issue": "2026-11-11",
-      "issues_added": 14,
-      "rows_added": 7400,
-      "rows_with_outcome": 6331,
-      "events_with_outcome": 226,
+      "latest_issue": "2026-11-23",
+      "issues_added": 18,
+      "rows_added": 9532,
+      "rows_with_outcome": 8443,
+      "events_with_outcome": 309,
       "inputs_reproduced_on_overlap": 1.0,
       "overlap_rows": 145784,
       "missing_input_share_latest": {
-        "geometry": 0.25,
-        "orbit_memory": 0.611,
-        "site_memory": 0.08,
+        "geometry": 0.0,
+        "orbit_memory": 0.0,
+        "site_memory": 0.079,
         "past_outcomes": 0.0,
         "season": 0.0,
         "neighbourhood": 0.0,
@@ -23,9 +23,9 @@
         "terrain": 0.0,
         "static_water_landcover": 0.0,
         "sentinel2": 0.0,
-        "era5land": 0.348,
+        "era5land": 0.087,
         "chirps": 1.0,
-        "nwp_forecast": 1.0,
+        "nwp_forecast": 0.0,
         "sar_base": 0.023
       }
     },
@@ -33,17 +33,17 @@
       "model_trained_to": "2026-09-24",
       "last_evaluated_issue": "2026-09-24",
       "first_open_issue": "2026-09-29",
-      "latest_issue": "2026-11-11",
-      "issues_added": 16,
-      "rows_added": 8436,
-      "rows_with_outcome": 6335,
-      "events_with_outcome": 169,
+      "latest_issue": "2026-11-23",
+      "issues_added": 20,
+      "rows_added": 10568,
+      "rows_with_outcome": 8436,
+      "events_with_outcome": 225,
       "inputs_reproduced_on_overlap": 1.0,
       "overlap_rows": 140490,
       "missing_input_share_latest": {
-        "geometry": 0.25,
-        "orbit_memory": 0.611,
-        "site_memory": 0.08,
+        "geometry": 0.0,
+        "orbit_memory": 0.0,
+        "site_memory": 0.079,
         "past_outcomes": 0.0,
         "season": 0.0,
         "neighbourhood": 0.0,
@@ -55,95 +55,95 @@
     }
   },
   "inputs": {
-    "sentinel1_last_pass": "2026-11-11",
+    "sentinel1_last_pass": "2026-11-23",
     "sentinel1_recent_passes": null,
-    "sentinel2_last": "2026-11-09",
-    "era5land_last": "2026-11-12",
+    "sentinel2_last": "2026-11-19",
+    "era5land_last": "2026-11-26",
     "chirps_last": "2026-11-05",
-    "nwp_last": "2026-11-12"
+    "nwp_last": "2026-12-04"
   },
   "weather_outlook": {
     "source": "ECMWF IFS 0.25 degree via Open-Meteo",
-    "retrieved_utc": "2026-11-13T02:42:29Z",
+    "retrieved_utc": "2026-11-26T10:12:05Z",
     "point": [
       -1.8731,
       30.2232
     ],
     "days": [
       {
-        "date": "2026-11-13",
-        "rain_mm": 19.2,
-        "temp_c": 17.5
-      },
-      {
-        "date": "2026-11-14",
-        "rain_mm": 3.9,
-        "temp_c": 17.3
-      },
-      {
-        "date": "2026-11-15",
-        "rain_mm": 6.6,
-        "temp_c": 17.5
-      },
-      {
-        "date": "2026-11-16",
-        "rain_mm": 7.2,
-        "temp_c": 18.2
-      },
-      {
-        "date": "2026-11-17",
-        "rain_mm": 3.9,
-        "temp_c": 18.3
-      },
-      {
-        "date": "2026-11-18",
-        "rain_mm": 2.3,
-        "temp_c": 18.2
-      },
-      {
-        "date": "2026-11-19",
-        "rain_mm": 6.2,
-        "temp_c": 18.0
-      },
-      {
-        "date": "2026-11-20",
-        "rain_mm": 8.8,
-        "temp_c": 18.0
-      },
-      {
-        "date": "2026-11-21",
-        "rain_mm": 1.0,
-        "temp_c": 18.5
-      },
-      {
-        "date": "2026-11-22",
-        "rain_mm": 4.8,
-        "temp_c": 18.0
-      },
-      {
-        "date": "2026-11-23",
-        "rain_mm": 7.8,
-        "temp_c": 17.4
-      },
-      {
-        "date": "2026-11-24",
-        "rain_mm": 8.6,
-        "temp_c": 17.1
-      },
-      {
-        "date": "2026-11-25",
-        "rain_mm": 5.6,
-        "temp_c": 17.8
-      },
-      {
         "date": "2026-11-26",
-        "rain_mm": 3.0,
-        "temp_c": 18.7
+        "rain_mm": 3.1,
+        "temp_c": 19.5
       },
       {
         "date": "2026-11-27",
-        "rain_mm": null,
-        "temp_c": null
+        "rain_mm": 3.0,
+        "temp_c": 19.4
+      },
+      {
+        "date": "2026-11-28",
+        "rain_mm": 7.3,
+        "temp_c": 19.3
+      },
+      {
+        "date": "2026-11-29",
+        "rain_mm": 7.6,
+        "temp_c": 18.7
+      },
+      {
+        "date": "2026-11-30",
+        "rain_mm": 0.5,
+        "temp_c": 20.2
+      },
+      {
+        "date": "2026-12-01",
+        "rain_mm": 9.0,
+        "temp_c": 19.4
+      },
+      {
+        "date": "2026-12-02",
+        "rain_mm": 1.8,
+        "temp_c": 19.5
+      },
+      {
+        "date": "2026-12-03",
+        "rain_mm": 6.0,
+        "temp_c": 18.5
+      },
+      {
+        "date": "2026-12-04",
+        "rain_mm": 9.8,
+        "temp_c": 17.6
+      },
+      {
+        "date": "2026-12-05",
+        "rain_mm": 3.0,
+        "temp_c": 18.4
+      },
+      {
+        "date": "2026-12-06",
+        "rain_mm": 5.8,
+        "temp_c": 17.4
+      },
+      {
+        "date": "2026-12-07",
+        "rain_mm": 4.0,
+        "temp_c": 17.9
+      },
+      {
+        "date": "2026-12-08",
+        "rain_mm": 3.6,
+        "temp_c": 18.0
+      },
+      {
+        "date": "2026-12-09",
+        "rain_mm": 4.0,
+        "temp_c": 17.6
+      },
+      {
+        "date": "2026-12-10",
+        "rain_mm": 6.8,
+        "temp_c": 17.5
       }
     ]
   },
