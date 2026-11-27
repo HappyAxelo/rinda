@@ -37,6 +37,8 @@ import connectors as C
 import datasets as D
 import db
 import field as F
+import larva_detect as LD
+import assistant as AS
 import geo as G
 import ops
 import planner as P
@@ -1094,6 +1096,8 @@ api.include_router(V.router)
 api.include_router(D.router)
 api.include_router(reporting.router)
 api.include_router(research.router)
+api.include_router(LD.router)
+api.include_router(AS.router)
 app.include_router(api, prefix="/api/v1")
 app.include_router(api, prefix="/api", include_in_schema=False)
 

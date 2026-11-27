@@ -1,7 +1,7 @@
 // Unified habitat dossier: one profile per monitoring location or field-registered
 // habitat. The same summary feeds the map side panel and the drawer; the full
 // page adds the complete history. Evidence kinds are never merged.
-import { api, card, chart, drawer, fmt, esc, icon, css, series, evi, opStatus, auditNote, empty, pill, NODATA, table } from '../ui.js';
+import { api, card, chart, drawer, fmt, esc, icon, css, series, evi, opStatus, auditNote, empty, pill, NODATA, table, toast } from '../ui.js';
 import { params } from '../app.js';
 
 const yes = (v) => ({ yes: 'Yes', no: 'No', unknown: 'Unknown', not_sampled: 'Not sampled', not_identified: 'Not identified' }[v] || v || '–');
@@ -138,6 +138,43 @@ export function openDossierDrawer(id, st) {
 }
 
 // ------------------------------------------------------------------ full page
+// Field photographs with their latest automated larva count. The count is shown as an unverified reading; it never
+// changes the observation, the habitat status or a decision. Supervisors can request a count when the installation
+// has switched automated counts on (server/larva_detect.py).
+const autoLine = (p) => p.auto_count == null ? '' : `<span class="auto">Automated count, unverified: <b>${p.auto_count}</b>${
+  p.auto_counts && Object.keys(p.auto_counts).length ? ` (${Object.entries(p.auto_counts).map(([k, v]) => `${esc(k)} ${v}`).join(', ')})` : ''}</span>`;
+
+function photoBlock(photos, st) {
+  return `<div class="photos">${photos.map((p) => `<figure class="ph">
+    <a href="/api/v1/photos/${p.id}" target="_blank" rel="noopener"><img src="/api/v1/photos/${p.id}" alt="Photograph from observation O${p.observation_id}" loading="lazy"></a>
+    <figcaption>${autoLine(p)}${st.can('review:observation') ? `<button class="btn sm ghost" data-detect="${p.id}" hidden>Count larvae</button>` : ''}</figcaption></figure>`).join('')}</div>
+    <p class="hint" id="dsDetectNote" hidden></p>`;
+}
+
+async function bindDetections(el, st) {
+  const btns = [...el.querySelectorAll('[data-detect]')];
+  if (!btns.length) return;
+  let s;
+  try { s = await api.get('/api/larva-detection/status'); } catch { return; }
+  const note = el.querySelector('#dsDetectNote');
+  if (!s.enabled) { note.textContent = s.reason; note.hidden = false; return; }
+  note.textContent = `Counting sends the photograph to ${s.sends_photographs_to} (model ${s.model_id}). ${s.caution}`;
+  note.hidden = false;
+  btns.forEach((b) => {
+    b.hidden = false;
+    b.addEventListener('click', async () => {
+      b.disabled = true; b.textContent = 'Counting…';
+      try {
+        const r = await api.post(`/api/photos/${b.dataset.detect}/detections`, {});
+        b.closest('figcaption').querySelector('.auto')?.remove();
+        b.insertAdjacentHTML('beforebegin', autoLine({ auto_count: r.n_detections, auto_counts: r.counts }));
+        toast(`Automated count: ${r.n_detections} detection(s). Unverified.`);
+      } catch (e) { toast(e.message, true); }
+      b.disabled = false; b.textContent = 'Count larvae';
+    });
+  });
+}
+
 export async function render(el, st) {
   const id = params().get('id');
   if (!id) {
@@ -168,7 +205,7 @@ export async function render(el, st) {
         <details class="tech" style="margin-top:12px"><summary>How the water signal is derived</summary><div>A pass counts as a water signal when VV is at or below ${d.satellite.water_thresholds.vv_db_max} dB and VH at or below ${d.satellite.water_thresholds.vh_db_max} dB, on the orbit-harmonised Sentinel-1 series. The thresholds were calibrated against Sentinel-2, not against field observations. Sentinel-1C is not yet harmonised, which inflates recent signals.</div></details>`, { sub: 'Sentinel-1, 50 m sample · satellite-observed' }) : ''}
       ${d.forecasts ? card('Forecast history', `<div class="chart sm" id="dsFc"></div><p class="hint" style="margin:8px 0 0">Research-only. Scores as issued at the time, with later radar signals marked.</p>`, { sub: `${st.h}-day horizon` }) : ''}
       ${full ? card('Entomological history', entoTable(obs, d.samples || []), { flush: true, sub: 'Field inspections and survey samples' }) : ''}
-      ${full && d.photos?.length ? card('Photographs', `<div class="photos">${d.photos.map((p) => `<a href="/api/v1/photos/${p.id}" target="_blank" rel="noopener"><img src="/api/v1/photos/${p.id}" alt="Photograph from observation O${p.observation_id}" loading="lazy"></a>`).join('')}</div>`) : ''}
+      ${full && d.photos?.length ? card('Photographs', photoBlock(d.photos, st), { sub: 'Field-observed. Automated counts are unverified readings.' }) : ''}
     </div>
     <div class="grid" style="align-content:start">
       ${card('Identification', `<div class="kvs"><div><span>Code</span><span class="mono" style="display:inline;color:var(--ink)">${esc(d.id)}</span></div><div><span>Type</span>${d.kind === 'habitat' ? 'Field-registered habitat' : '50 m radar monitoring location'}</div>
@@ -187,6 +224,7 @@ export async function render(el, st) {
   </div>
   <div style="margin-top:18px">${d.kind !== 'habitat' ? auditNote(d.model_audit) : ''}</div>`;
   bindActions(el, d, st);
+  bindDetections(el, st);
 
   if (d.satellite) {
     const r = d.satellite.radar;

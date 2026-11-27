@@ -46,12 +46,12 @@ def test_migration_6_is_additive_and_keeps_existing_rows(tmp_path):
     c.execute("INSERT INTO missions (id, status, params, result) VALUES ('M-OLD','PLANNED','{}','{}')")
     c.commit()
     db._migrate(c)
-    assert c.execute("SELECT MAX(version) FROM schema_version").fetchone()[0] == 6
+    assert c.execute("SELECT MAX(version) FROM schema_version").fetchone()[0] == db.MIGRATIONS[-1][0]   # 6 and later run on old data
     assert c.execute("SELECT site_id FROM observations WHERE client_uuid='keep-me'").fetchone()[0] == "G0001"
     assert c.execute("SELECT kind FROM missions WHERE id='M-OLD'").fetchone()[0] == "inspection"
     tables = {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     assert {"data_sources", "ingestion_runs", "environmental_observations", "entomological_samples", "raster_products",
-            "administrative_areas", "dataset_versions", "training_runs", "model_registry"} <= tables
+            "administrative_areas", "dataset_versions", "training_runs", "model_registry", "photo_detections"} <= tables
 
 
 def test_api_compatibility_with_previous_release(app):

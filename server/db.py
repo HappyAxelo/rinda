@@ -131,6 +131,13 @@ ALTER TABLE missions ADD COLUMN kind TEXT NOT NULL DEFAULT 'inspection';
 ALTER TABLE missions ADD COLUMN flight_result TEXT;
 ALTER TABLE missions ADD COLUMN decision_note TEXT;
 """),
+    (7, "automated larva counts on field photographs (unverified readings)", """
+CREATE TABLE IF NOT EXISTS photo_detections (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, photo_id INTEGER NOT NULL, provider TEXT NOT NULL, model_id TEXT NOT NULL,
+  run_utc TEXT NOT NULL, actor TEXT, status TEXT NOT NULL, n_detections INTEGER, counts TEXT, predictions TEXT,
+  image_width INTEGER, image_height INTEGER, min_confidence REAL, error TEXT);
+CREATE INDEX IF NOT EXISTS ix_photo_detections_photo ON photo_detections(photo_id);
+"""),
 ]
 
 

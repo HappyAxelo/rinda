@@ -607,7 +607,13 @@ def dossier(sid: str, u: User = Depends(require("read:forecast"))):
     names = S.user_names() if full else {}
     with tx() as c:
         samples = [dict(r) for r in c.execute("SELECT * FROM entomological_samples WHERE site_id=? ORDER BY sample_date", (sid,))]
-        photos = [dict(r) for r in c.execute("SELECT p.id, p.observation_id, p.uploaded_utc, p.content_type FROM observation_photos p JOIN observations o ON o.id=p.observation_id WHERE o.site_id=?", (sid,))] if full else []
+        photos = [dict(r) for r in c.execute(
+            "SELECT p.id, p.observation_id, p.uploaded_utc, p.content_type, d.n_detections AS auto_count, d.counts AS auto_counts, "
+            "d.model_id AS auto_model, d.run_utc AS auto_run_utc FROM observation_photos p JOIN observations o ON o.id=p.observation_id "
+            "LEFT JOIN photo_detections d ON d.id=(SELECT MAX(id) FROM photo_detections WHERE photo_id=p.id AND status='done') "
+            "WHERE o.site_id=?", (sid,))] if full else []
+        for ph in photos:
+            ph["auto_counts"] = json.loads(ph["auto_counts"]) if ph.get("auto_counts") else None
         missions = [dict(r) for r in c.execute("SELECT id, status, kind, created_utc, result FROM missions")]
         trail = [dict(r) for r in c.execute("SELECT ts_utc, actor, action, detail FROM audit WHERE detail LIKE ? ORDER BY id DESC LIMIT 100", (f"%{sid}%",))] if u.can("read:audit") else None
     flown = [{k: m[k] for k in ("id", "status", "kind", "created_utc")} for m in missions if any(w["site_id"] == sid for s in json.loads(m["result"]).get("sorties", []) for w in s["waypoints"])]

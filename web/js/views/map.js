@@ -4,6 +4,7 @@
 import { api, makeMap, icon, esc, fmt, css, pill, chart, disposeIn, toast, ramp, empty, opStatus, NODATA } from '../ui.js';
 import { params, setIssue } from '../app.js';
 import { loadSummary } from './dossier.js';
+import { mountAssistant } from '../assistant.js';
 
 let map, groups = {}, redraws = {}, data = {}, boundsLayer = {}, ST, root;
 const S = { date: null, lastTop: null, cell: '', inSector: false, earthMode: 'wet', compare: '', model: '', gridView: 'max', gridHabitat: false, gridWet: true,
@@ -29,9 +30,25 @@ const OPS_COLOR = { inspection_required: '--info', evidence_insufficient: '--war
 const ENTO = { breeding_confirmed: ['Anopheles larvae confirmed', 'dm', '--terra'], larvae_observed: ['Larvae found, species not confirmed', 'sq', '--signal'], larvae_negative: ['Dipped, no larvae', 'ring', '--ink-3'],
   water_observed: ['Water seen, not dipped', '', '--water'], survey_positive: ['Survey sample, larvae found', 'sq', '--s-6'], survey_negative: ['Survey sample, none found', 'ring', '--s-7'] };
 
+// Deep links (used by Ask the map): #/map?layers=grid,forecast&date=YYYY-MM-DD&h=14&day=d9&earth=new_signal&insector=1&focus=ID&highlight=ID,ID
+function applyLink(st) {
+  const q = params();
+  if (q.has('h') && [7, 14].includes(+q.get('h')) && +q.get('h') !== st.h) {
+    const b = document.querySelector(`#hSeg button[data-h="${+q.get('h')}"]`);
+    if (b) { b.click(); return true; }          // re-renders through the normal horizon switch
+  }
+  if (q.has('layers')) { const on = q.get('layers').split(','); Object.keys(S.on).forEach((k) => { S.on[k] = on.includes(k); }); }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(q.get('date') || '')) { S.date = q.get('date'); S.lastTop = st.date; }
+  if (/^(max|d(?:[7-9]|1[0-4]))$/.test(q.get('day') || '')) S.gridView = q.get('day');
+  if (EARTH_MODES[q.get('earth')]) S.earthMode = q.get('earth');
+  if (q.has('insector')) S.inSector = q.get('insector') === '1';
+  return false;
+}
+
 export async function render(el, st) {
   ST = st; root = el;
   if (S.lastTop !== st.date) { S.date = st.date; S.lastTop = st.date; }
+  if (applyLink(st)) return;
   const areas = await api.get('/api/geo/areas');
   const cells = areas.filter((a) => a.level === 'cell');
   const issues = st.boot.horizons[st.h].dates;
@@ -106,9 +123,31 @@ export async function render(el, st) {
   if (window.matchMedia('(max-width: 900px)').matches) { $('mapctl').classList.add('closed'); $('ctlToggle').setAttribute('aria-expanded', 'false'); }
   search($('mSearch'), $('mResults'));
 
+  mountAssistant(el.querySelector('#mapws'), el.querySelector('.map-tools'));
   await reloadAll();
-  const focus = params().get('focus');
+  const q = params();
+  const hl = (q.get('highlight') || '').split(',').filter((x) => /^(G\d{4}|H\d{4}|G20-[\d-]+)$/.test(x)).slice(0, 50);
+  if (hl.length) highlight(hl);
+  const focus = q.get('focus');
   if (focus) locate(focus);
+}
+
+// Rings around the places an answer names, and the map zoomed to them.
+function placeOf(id) {
+  const s = ST.boot.sites.find((x) => x.site_id === id);
+  if (s) return [s.latitude, s.longitude];
+  const c = data.grid?.candidates?.features.find((f) => f.properties.id === id);
+  if (c) return [c.properties.lat, c.properties.lon];
+  const e = data.ento?.points?.find((p) => p.site_id === id);
+  return e ? [e.lat, e.lon] : null;
+}
+function highlight(ids) {
+  const pts = ids.map((id) => [id, placeOf(id)]).filter(([, p]) => p);
+  if (!pts.length) return;
+  const g = L.layerGroup().addTo(map);
+  pts.forEach(([id, p]) => L.circleMarker(p, { radius: 13, color: css('--terra'), weight: 3, fill: false, className: 'hl-ring' })
+    .bindTooltip(id, { direction: 'top' }).on('click', () => locate(id)).addTo(g));
+  if (pts.length === 1) map.setView(pts[0][1], 16); else map.fitBounds(L.latLngBounds(pts.map(([, p]) => p)), { padding: [40, 40], maxZoom: 16 });
 }
 
 function fit() {
@@ -342,6 +381,7 @@ function closeSide() {
 function openSite(id) { loadSummary(side(`<span class="mono">${esc(id)}</span>`), id, ST); }
 
 async function locate(id) {
+  if (id.startsWith('G20-')) { const p = placeOf(id); if (p) { highlight([id]); map.setView(p, 17); } return; }
   const s = ST.boot.sites.find((x) => x.site_id === id);
   if (s) map.setView([s.latitude, s.longitude], 16);
   openSite(id);

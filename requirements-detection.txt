@@ -1,0 +1,3 @@
+# Optional: automated larva counts on field photographs (server/larva_detect.py).
+# Not in requirements.txt: it pulls in OpenCV and would not fit the 512 MB hosted plan's memory guard.
+inference-sdk>=1.5.0
