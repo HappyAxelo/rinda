@@ -557,12 +557,27 @@ def score_template(h: int = 7, u: User = Depends(require("read:forecast"))):
 
 
 # ------------------------------------------------------------ validation
+_REPLAY: dict = {}
+
+
 def _replay_rows(h: int) -> pd.DataFrame:
-    p = store().product[h].dropna(subset=["y"]).copy()
-    p["category"] = [R.category(c, pr) for c, pr in zip(p.conformal_decision, p.probability)]
-    p["call"] = p.category == "high"
-    p["y"] = p.y.astype(int)
-    return p
+    """Scored rows with a known outcome: only the four columns replay needs, categories computed in one vectorised
+    step with the same rule as rules.category, cached per horizon. Before 27 Nov 2026 each replay request copied the
+    whole product table three times, which set the server's memory peak."""
+    prod = store().product[h]
+    thr = R.rules()["verification_priority"]["moderate"].get("moderate_min_probability")
+    key = (h, id(prod), len(prod), thr)
+    if _REPLAY.get(h, (None,))[0] != key:
+        p = prod.loc[prod.y.notna(), ["date", "conformal_decision", "probability", "y"]]
+        call = p.conformal_decision.astype(str).to_numpy()
+        prob = p.probability.to_numpy(dtype="float64")
+        moderate = (prob >= float(thr)) if thr is not None else np.zeros(len(p), dtype=bool)
+        cat = np.select([call == "formation", call == "uncertain", moderate], ["high", "insufficient", "moderate"], "lower")
+        out = pd.DataFrame({"date": p.date.to_numpy(), "category": pd.Categorical(cat, categories=["high", "insufficient", "moderate", "lower"]),
+                            "y": p.y.astype(int).to_numpy()})
+        out["call"] = (cat == "high")
+        _REPLAY[h] = (key, out)
+    return _REPLAY[h][1]
 
 
 def _confusion(p: pd.DataFrame) -> dict:

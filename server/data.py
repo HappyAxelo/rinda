@@ -102,21 +102,21 @@ class Store:
 
     def verification(self, h: int) -> pd.DataFrame:
         """Per issue date: how the alerts fared against what the radar later saw."""
-        f = self.product[h].dropna(subset=["y"]).copy()
-        f["alert"] = self._alert(f, h)
+        # A few columns and one grouped sum (before 27 Nov 2026: a full-table copy and nine per-group passes, a memory peak)
+        p = self.product[h]
+        p = p.loc[p.y.notna(), [c for c in ("date", "y", "conformal_decision", "probability", "alert_prec") if c in p.columns]]
+        alert = self._alert(p, h).to_numpy(dtype=bool)
+        y = p.y.to_numpy()
+        call = p.conformal_decision.astype(str).to_numpy()
+        f = pd.DataFrame({"date": p.date.to_numpy(), "one": True, "alert": alert, "y": y,
+                          "hits": alert & (y == 1), "false_alarms": alert & (y == 0), "misses": ~alert & (y == 1),
+                          "uncertain": call == "uncertain", "formation_calls": call == "formation",
+                          "calls_confirmed": (call == "formation") & (y == 1), "probability": p.probability.to_numpy()})
         g = f.groupby("date")
-        out = pd.DataFrame({
-            "n_sites": g.size(),
-            "alerts": g.alert.sum(),
-            "observed_formation": g.y.sum(),
-            "hits": g.apply(lambda x: int((x.alert & (x.y == 1)).sum()), include_groups=False),
-            "false_alarms": g.apply(lambda x: int((x.alert & (x.y == 0)).sum()), include_groups=False),
-            "misses": g.apply(lambda x: int((~x.alert & (x.y == 1)).sum()), include_groups=False),
-            "uncertain": g.apply(lambda x: int((x.conformal_decision == "uncertain").sum()), include_groups=False),
-            "formation_calls": g.apply(lambda x: int((x.conformal_decision == "formation").sum()), include_groups=False),
-            "calls_confirmed": g.apply(lambda x: int(((x.conformal_decision == "formation") & (x.y == 1)).sum()), include_groups=False),
-            "mean_probability": g.probability.mean(),
-        }).reset_index()
+        s = g[["one", "alert", "y", "hits", "false_alarms", "misses", "uncertain", "formation_calls", "calls_confirmed"]].sum()
+        out = pd.DataFrame({"n_sites": s.one, "alerts": s.alert, "observed_formation": s.y, "hits": s.hits, "false_alarms": s.false_alarms,
+                            "misses": s.misses, "uncertain": s.uncertain, "formation_calls": s.formation_calls,
+                            "calls_confirmed": s.calls_confirmed, "mean_probability": g.probability.mean()}).reset_index()
         out["date"] = out.date.dt.strftime("%Y-%m-%d")
         return out
 
