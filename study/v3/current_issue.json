@@ -1,5 +1,5 @@
 {
-  "issued_utc": "2026-11-26T10:11:54Z",
+  "issued_utc": "2026-11-27T06:15:38Z",
   "horizons": {
     "7": {
       "model_trained_to": "2026-09-30",
@@ -23,10 +23,10 @@
         "terrain": 0.0,
         "static_water_landcover": 0.0,
         "sentinel2": 0.0,
-        "era5land": 0.087,
+        "era5land": 0.043,
         "chirps": 1.0,
         "nwp_forecast": 0.0,
-        "sar_base": 0.023
+        "sar_base": 0.0
       }
     },
     "14": {
@@ -50,7 +50,7 @@
         "rain_response_past": 0.0,
         "terrain": 0.0,
         "static_water_landcover": 0.0,
-        "sar_base": 0.023
+        "sar_base": 0.0
       }
     }
   },
@@ -58,92 +58,92 @@
     "sentinel1_last_pass": "2026-11-23",
     "sentinel1_recent_passes": null,
     "sentinel2_last": "2026-11-19",
-    "era5land_last": "2026-11-26",
+    "era5land_last": "2026-11-27",
     "chirps_last": "2026-11-05",
-    "nwp_last": "2026-12-04"
+    "nwp_last": "2026-12-05"
   },
   "weather_outlook": {
     "source": "ECMWF IFS 0.25 degree via Open-Meteo",
-    "retrieved_utc": "2026-11-26T10:12:05Z",
+    "retrieved_utc": "2026-11-27T06:16:02Z",
     "point": [
       -1.8731,
       30.2232
     ],
     "days": [
       {
-        "date": "2026-11-26",
-        "rain_mm": 3.1,
-        "temp_c": 19.5
-      },
-      {
         "date": "2026-11-27",
-        "rain_mm": 3.0,
-        "temp_c": 19.4
+        "rain_mm": 2.6,
+        "temp_c": 19.6
       },
       {
         "date": "2026-11-28",
-        "rain_mm": 7.3,
-        "temp_c": 19.3
+        "rain_mm": 2.7,
+        "temp_c": 19.7
       },
       {
         "date": "2026-11-29",
-        "rain_mm": 7.6,
-        "temp_c": 18.7
-      },
-      {
-        "date": "2026-11-30",
-        "rain_mm": 0.5,
-        "temp_c": 20.2
-      },
-      {
-        "date": "2026-12-01",
-        "rain_mm": 9.0,
+        "rain_mm": 3.4,
         "temp_c": 19.4
       },
       {
+        "date": "2026-11-30",
+        "rain_mm": 3.1,
+        "temp_c": 20.3
+      },
+      {
+        "date": "2026-12-01",
+        "rain_mm": 4.1,
+        "temp_c": 19.8
+      },
+      {
         "date": "2026-12-02",
-        "rain_mm": 1.8,
-        "temp_c": 19.5
+        "rain_mm": 9.2,
+        "temp_c": 18.9
       },
       {
         "date": "2026-12-03",
-        "rain_mm": 6.0,
-        "temp_c": 18.5
-      },
-      {
-        "date": "2026-12-04",
-        "rain_mm": 9.8,
-        "temp_c": 17.6
-      },
-      {
-        "date": "2026-12-05",
-        "rain_mm": 3.0,
+        "rain_mm": 6.2,
         "temp_c": 18.4
       },
       {
-        "date": "2026-12-06",
-        "rain_mm": 5.8,
-        "temp_c": 17.4
-      },
-      {
-        "date": "2026-12-07",
-        "rain_mm": 4.0,
+        "date": "2026-12-04",
+        "rain_mm": 3.2,
         "temp_c": 17.9
       },
       {
+        "date": "2026-12-05",
+        "rain_mm": 1.2,
+        "temp_c": 18.2
+      },
+      {
+        "date": "2026-12-06",
+        "rain_mm": 6.4,
+        "temp_c": 18.1
+      },
+      {
+        "date": "2026-12-07",
+        "rain_mm": 5.4,
+        "temp_c": 17.4
+      },
+      {
         "date": "2026-12-08",
-        "rain_mm": 3.6,
-        "temp_c": 18.0
+        "rain_mm": 4.8,
+        "temp_c": 18.4
       },
       {
         "date": "2026-12-09",
         "rain_mm": 4.0,
-        "temp_c": 17.6
+        "temp_c": 18.0
       },
       {
         "date": "2026-12-10",
-        "rain_mm": 6.8,
-        "temp_c": 17.5
+        "rain_mm": 0.6,
+        "temp_c": 18.3
+      },
+      {
+        "date": "2026-12-11",
+        "rain_mm": null,
+        "temp_c": null
       }
     ]
   },
