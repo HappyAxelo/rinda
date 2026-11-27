@@ -147,7 +147,21 @@ function highlight(ids) {
   const g = L.layerGroup().addTo(map);
   pts.forEach(([id, p]) => L.circleMarker(p, { radius: 13, color: css('--terra'), weight: 3, fill: false, className: 'hl-ring' })
     .bindTooltip(id, { direction: 'top' }).on('click', () => locate(id)).addTo(g));
-  if (pts.length === 1) map.setView(pts[0][1], 16); else map.fitBounds(L.latLngBounds(pts.map(([, p]) => p)), { padding: [40, 40], maxZoom: 16 });
+  // Fit only when the map is properly sized: while the intro dialog is open the map is a sliver (about 32 px wide) and
+  // Leaflet would pick its maximum zoom. Check every 250 ms for up to 15 s, fit once it is ready, once more shortly
+  // after, then stop.
+  const fitAll = () => {
+    if (!map) return false;
+    map.invalidateSize();
+    const sz = map.getSize();
+    if (sz.x < 200 || sz.y < 200) return false;
+    if (pts.length === 1) map.setView(pts[0][1], 16); else map.fitBounds(L.latLngBounds(pts.map(([, p]) => p)), { padding: [40, 40], maxZoom: 16 });
+    return true;
+  };
+  let tries = 0;
+  const timer = setInterval(() => {
+    if (fitAll() || ++tries > 60) { clearInterval(timer); setTimeout(fitAll, 600); }
+  }, 250);
 }
 
 function fit() {
@@ -381,7 +395,7 @@ function closeSide() {
 function openSite(id) { loadSummary(side(`<span class="mono">${esc(id)}</span>`), id, ST); }
 
 async function locate(id) {
-  if (id.startsWith('G20-')) { const p = placeOf(id); if (p) { highlight([id]); map.setView(p, 17); } return; }
+  if (id.startsWith('G20-')) { const p = placeOf(id); if (p) { highlight([id]); setTimeout(() => map?.setView(p, 17), 500); } return; }
   const s = ST.boot.sites.find((x) => x.site_id === id);
   if (s) map.setView([s.latitude, s.longitude], 16);
   openSite(id);
@@ -462,3 +476,4 @@ function search(input, box) {
 
 export const setModel = (id) => { S.model = id; };
 export { opStatus };
+
